@@ -4,6 +4,12 @@ const cors = require('cors');
 const app = express();
 const port = process.env.port || 8080;
 
+app.use(cors({
+    origin: 'https://anatomica-app.com',
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
+    preflightContinue: true,
+}));
+
 const categoriesRoute = require('./routes/categories');
 const subcategoriesRoute = require('./routes/subcategories');
 const classicQuestionsroute = require('./routes/classicQuestions');
@@ -14,9 +20,6 @@ const reportsRoute = require('./routes/reports');
 
 // Limit the payload for 10 MB.
 app.use(express.json({limit: 10000000}));
-
-// Enabling cross domain requests.
-app.use(cors());
 
 // ***** Server Methods *****
 

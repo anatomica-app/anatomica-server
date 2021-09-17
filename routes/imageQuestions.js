@@ -23,8 +23,22 @@ const gcs = new Storage({
 const defaultBucket = gcs.bucket('anatomica-ec2cd.appspot.com');
 
 // Fetching all the Image Questions
-router.get('/', (req, res) => {
-    const sql = "SELECT * FROM quiz_questions_image";
+router.post('/', (req, res) => {
+    const schema = Joi.object({
+        full: Joi.boolean().required()
+    })
+
+    const result = schema.validate(req.body);
+    if (result.error) return res.status(400).send(result.error.details[0].message);
+
+    let sql = "";
+
+    if (req.body.full) {
+        // We need to inner join the foreign keys.
+        sql = "SELECT quiz_questions_image.id, image, quiz_category.name AS category, quiz_subcategory.name AS subcategory, answer, a, b, c, d, quiz_questions_image.date_added FROM quiz_questions_image INNER JOIN quiz_category on quiz_questions_image.category = quiz_category.id INNER JOIN quiz_subcategory ON quiz_questions_image.subcategory = quiz_subcategory.id";
+    }else {
+        sql = "SELECT * FROM quiz_questions_image";
+    }
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
@@ -32,7 +46,7 @@ router.get('/', (req, res) => {
             conn.release();
             if (error) return res.status(500).json({error: true, message: error.message});;
 
-            return res.json({error: false, data: rows});
+            res.json({error: false, data: rows});
         });
     });
 });
