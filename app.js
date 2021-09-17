@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 
 const app = express();
 const port = process.env.port || 8080;
@@ -13,6 +14,9 @@ const reportsRoute = require('./routes/reports');
 
 // Limit the payload for 10 MB.
 app.use(express.json({limit: 10000000}));
+
+// Enabling cross domain requests.
+app.use(cors());
 
 // ***** Server Methods *****
 
