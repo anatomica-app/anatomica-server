@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anatomica</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lobster&family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <style>
+      body {
+        font-family: "Roboto Condensed", sans-serif;
+        font-weight: normal;
+        text-align: center;
+      }
+
+      h3 {
+        font-weight: normal;
+        font-size: 2rem;
+      }
+
+      h1 {
+        font-family: "Lobster", cursive;
+        font-size: 3rem;
+      }
+
+      .main-container {
+        padding: 0 30%;
+      }
+
+      .brand-logo {
+        margin: auto;
+      }
+
+      .welcome-text {
+        padding: 10px 0;
+      }
+
+      .info-text {
+        font-size: 1.3rem;
+      }
+
+      .btn-grad {
+        background-image: linear-gradient(
+          to right,
+          #ff9a8b 0%,
+          #ff6a88 51%,
+          #ff99ac 100%
+        );
+      }
+      .btn-grad {
+        padding: 15px 45px;
+        margin: 50px 0;
+        text-align: center;
+        text-transform: uppercase;
+        text-decoration: none;
+        transition: 0.5s;
+        background-size: 200% auto;
+        color: white;
+        box-shadow: 0 0 20px #eee;
+        border-radius: 50px;
+        font-size: 1.5rem;
+        display: inline-block;
+      }
+
+      .btn-grad:hover {
+        background-position: right center; /* change the direction of the change here */
+        color: #fff;
+        text-decoration: none;
+      }
+
+      .footer-info-text {
+        color: gray;
+        word-wrap: break-word;
+      }
+
+      .default-url {
+        color: gray;
+      }
+
+      .footer-url {
+        text-decoration: underline;
+        color: #ff6a88;
+      }
+
+      .app-store-section {
+        display: flex;
+        justify-content: center;
+      }
+
+      .app-store-badge {
+        padding: 10px;
+      }
+
+      @media only screen and (max-width: 960px) {
+        .main-container {
+          padding: 0 7%;
+        }
+      }
+    </style>
+
+    <!-- Main Content -->
+    <div class="main-container">
+      <div class="welcome-title">
+        <img
+          src="https://anatomica-app.com/admin/includes/mail_templates/images/logo.png"
+          class="brand-logo"
+          alt="anatomica_logo"
+          width="200"
+          height="200"
+        />
+        <h1>Anatomica'ya Hoş Geldiniz!</h1>
+      </div>
+      <div class="welcome-text">
+        <h3>Merhaba <strong>{NAME}</strong>,</h3>
+        <br />
+        <p class="info-text">
+          Anatomica'ya kaydolduğunuz için teşekkür ederiz. Hesabınızı
+          etkinleştirmek için aşağıdaki butona tıklayarak bu işlemi sizin
+          yaptığınızı doğrulamanız gerekmektedir. <br /><br /><strong
+            >Eğer bu işlemi siz yapmadıysanız lütfen bu e-postayı dikkate
+            almayın.</strong
+          >
+        </p>
+        <a href="{VERIFY_URL}" target="_blank" class="btn-grad" target="_blank"
+          ><strong>HESABIMI DOĞRULA</strong></a
+        >
+        <p class="footer-info-text">
+          Eğer "Hesabımı Doğrula" butonu ile ilgili sorun yaşıyorsanız aşağıdaki
+          bağlantıyı kopyalayıp tarayıcınıza yapıştırarak hesabınızı
+          doğrulayabilirsiniz. <br /><br /><a
+            class="default-url"
+            href="{VERIFY_URL}"
+            >{VERIFY_URL}</a
+          >
+        </p>
+      </div>
+      <hr />
+      <div class="footer-section">
+        <p class="footer-info-text">
+          Bu e-posta
+          <a class="footer-url" href="mailto:{EMAIL}" target="_blank"
+            >{EMAIL}</a
+          >
+          adresine gönderilmiştir. <br /><br />
+          Bize iletmek istediğiniz sorun, öneri ve şikayetler için lütfen
+          <a
+            class="footer-url"
+            href="mailto:support@anatomica-app.com"
+            target="_blank"
+            >support@anatomica-app.com</a
+          >
+          adresini kullanınız.
+        </p>
+
+        <hr />
+
+        <p class="footer-info-text">
+          Copyright © 2020-2021
+          <a class="footer-url" href="https://anatomica-app.com" target="_blank"
+            >anatomica-app.com</a
+          >
+        </p>
+
+        <div class="app-store-section">
+          <div class="app-store-badge">
+            <a href="https://anatomica-app.com" target="_blank">
+              <img
+                src="https://anatomica-app.com/admin/includes/mail_templates/images/play_store.svg"
+                alt="play_store_banner"
+                width="120"
+              />
+            </a>
+          </div>
+          <div class="app-store-badge">
+            <a href="https://anatomica-app.com" target="_blank">
+              <img
+                src="https://anatomica-app.com/admin/includes/mail_templates/images/app_store.svg"
+                alt="app_store_banner"
+                width="120"
+              />
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
