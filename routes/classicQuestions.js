@@ -77,18 +77,17 @@ router.post('/withCategory', async (req, res) => {
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
-    // Split the 'subcategories' string from commas ',' and create a list.
-    // Use this list for concetanating the SQL command.
+    // Use subcategories array for concetanating the SQL command.
     // For example: 1,2 will be:
     // subcategory = 1 OR subcategory = 2
 
     let subcategories = req.body.subcategories;
     let subcategoryQuery = "";
-
+    
     for (let i = 0; i < subcategories.length; i++) {
-        subcategoryQuery += ("subcategory = " + i);
+        subcategoryQuery += ("subcategory = " + subcategories[i]);
 
-        if (i !== (subcategories.length - 1)) {
+        if (subcategories.length !== 1 && i !== (subcategories.length - 1)) {
             subcategoryQuery += " OR ";
         }
     }
