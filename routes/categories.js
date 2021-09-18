@@ -38,7 +38,7 @@ router.get('/', (req, res) => {
 });
 
 // Create a new category.
-router.post('/', (req, res) => {
+router.post('/create', (req, res) => {
     const schema = Joi.object({
         name: Joi.string().required(),
         icon: Joi.string().base64().required()

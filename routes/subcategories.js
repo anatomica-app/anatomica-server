@@ -28,7 +28,7 @@ router.get('/', (req, res) => {
 });
 
 // Fetching all the subcategories with the given category.
-router.get('/withCategory', (req, res) => {
+router.post('/withCategory', (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required()
     })

@@ -42,7 +42,7 @@ router.post('/', (req, res) => {
 });
 
 // Fetching the Classic Question From Id.
-router.get('/withId', async (req, res) => {
+router.post('/withId', async (req, res) => {
     const sql = "SELECT * FROM quiz_questions_classic WHERE id = ?";
 
     const schema = Joi.object({
@@ -67,7 +67,7 @@ router.get('/withId', async (req, res) => {
 });
 
 // Fetching the Classic Question From Category and Subcategories.
-router.get('/withCategory', async (req, res) => {
+router.post('/withCategory', async (req, res) => {
     const schema = Joi.object({
         category: Joi.number().integer().required(),
         subcategories: Joi.array().required(),
@@ -107,7 +107,7 @@ router.get('/withCategory', async (req, res) => {
 });
 
 // Insert a new Classic Question record.
-router.post('/', async (req, res) => {
+router.post('/create', async (req, res) => {
     const schema = Joi.object({
         question: Joi.string().required(),
         category: Joi.number().integer().required(),

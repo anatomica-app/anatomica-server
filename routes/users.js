@@ -49,7 +49,7 @@ router.get('/email/:email', (req, res) => {
 });
 
 // Login user with credentials.
-router.get('/login', (req, res) => {
+router.post('/login', (req, res) => {
     const schema = Joi.object({
         email: Joi.string().min(3).max(64).required(),
         password: Joi.string().max(128).required()
@@ -73,7 +73,7 @@ router.get('/login', (req, res) => {
 });
 
 // Login user with Google.
-router.get('/login/google', (req, res) => {
+router.post('/login/google', (req, res) => {
     const schema = Joi.object({
         name: Joi.string().min(3).max(64).required(),
         email: Joi.string().min(3).max(64).required(),
