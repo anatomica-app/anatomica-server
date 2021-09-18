@@ -215,7 +215,7 @@ async function sendRegisterMail(name, email, id, hash) {
     fs.readFile(mailPath, 'utf8', async function(err, data) {
         if (err) return err.message;
 
-        let verifyUrl = `localhost:8080/v1/users/verify/${id}/${hash}`;
+        let verifyUrl = `https://anatomica-ec2cd.ew.r.appspot.com/v1/users/verify/${id}/${hash}`;
 
         let result = data.replace(/{NAME}/g, name);
         result = result.replace(/{EMAIL}/g, email);
@@ -223,17 +223,17 @@ async function sendRegisterMail(name, email, id, hash) {
 
         // Send the mail.
         let transporter = nodemailer.createTransport({
-            host: 'mail.anatomica-app.com',
+            host: process.env.MAIL_HOST,
             port: 465,
             secure: true,
             auth: {
-                user: 'support@anatomica-app.com',
-                pass: 'Bilgisayar-5'
+                user: process.env.MAIL_USER,
+                pass: process.env.MAIL_PASSWORD
             }
         });
     
         await transporter.sendMail({
-            from: 'Anatomica <support@anatomica-app.com>',
+            from: 'Anatomica <' + process.env.MAIL_USER + '>',
             to: email,
             subject: 'Anatomica | Üyelik Aktivasyonu',
             html: result
@@ -254,17 +254,17 @@ async function sendWelcomeMail(name, email) {
 
         // Send the mail.
         let transporter = nodemailer.createTransport({
-            host: 'mail.anatomica-app.com',
+            host: process.env.MAIL_HOST,
             port: 465,
             secure: true,
             auth: {
-                user: 'support@anatomica-app.com',
-                pass: 'Bilgisayar-5'
+                user: process.env.MAIL_USER,
+                pass: process.env.MAIL_PASSWORD
             }
         });
     
         await transporter.sendMail({
-            from: 'Anatomica <support@anatomica-app.com>',
+            from: 'Anatomica <' + process.env.MAIL_USER + '>',
             to: email,
             subject: 'Anatomica | Hoşgeldiniz',
             html: result
