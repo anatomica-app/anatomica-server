@@ -24,9 +24,9 @@ router.get('/id/:id', (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [req.params.id], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});;
+            if (error) return res.json({error: true, message: error.message});;
 
-            if (!rows[0]) return res.status(404).json({error: true, message: 'The user with the given id was not found.'});
+            if (!rows[0]) return res.json({error: true, message: 'The user with the given id was not found.'});
             else res.json({error: false, data: rows[0]});
         });
     });
@@ -40,9 +40,9 @@ router.get('/email/:email', (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [req.params.email], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});;
+            if (error) return res.json({error: true, message: error.message});;
 
-            if (!rows[0]) return res.status(404).json({error: true, message: 'The user with the given email address was not found.'});
+            if (!rows[0]) return res.json({error: true, message: 'The user with the given email address was not found.'});
             else res.json({error: false, data: rows[0]});
         });
     });
@@ -56,7 +56,7 @@ router.post('/login', (req, res) => {
     });
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     const sql = "SELECT * FROM users WHERE email = ? AND password = ? LIMIT 1";
 
@@ -64,9 +64,9 @@ router.post('/login', (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [req.body.email, req.body.password], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});;
+            if (error) return res.json({error: true, message: error.message});;
 
-            if (!rows[0]) return res.status(404).json({error: true, message: 'The email or the password was incorrect.'});
+            if (!rows[0]) return res.json({error: true, message: 'The email or the password was incorrect.'});
             else return res.json({error: false, data: rows[0]}); 
         });
     });
@@ -81,7 +81,7 @@ router.post('/login/google', (req, res) => {
     });
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     const sql = "SELECT * FROM users WHERE email = ? LIMIT 1";
 
@@ -89,7 +89,7 @@ router.post('/login/google', (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [req.body.email, req.body.password], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});;
+            if (error) return res.json({error: true, message: error.message});;
 
             if (!rows[0]){
                 // The user with the same email address was not
@@ -123,7 +123,7 @@ router.post('/', (req, res) => {
     });
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     const sql = "SELECT * FROM users WHERE email = ? LIMIT 1";
 
@@ -132,7 +132,7 @@ router.post('/', (req, res) => {
         conn.query(sql, [req.body.email], (error, rows) => {
             if (error){
                 conn.release();
-                return res.status(500).json({error: true, message: error.message});
+                return res.json({error: true, message: error.message});
             }
 
             if (!rows[0]) {
@@ -143,7 +143,7 @@ router.post('/', (req, res) => {
             
                 conn.query(sql2, [req.body.name, req.body.email, req.body.password, hash], (error2, rows2) => {
                     conn.release();
-                    if (error2) return res.status(500).json({error: true, message: error2.message});
+                    if (error2) return res.json({error: true, message: error2.message});
 
                     if (rows2['insertId'] === 0) {
                         return res.json({error: true, message: 'The user can not be created.'});
@@ -169,7 +169,7 @@ router.post('/google', (req, res) => {
     });
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     createGoogleUser(req.body.name, req.body.email, req.body.pp, res);
 });
@@ -182,7 +182,7 @@ router.put('/changeUserName/', async (req, res) => {
     });
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     await canChangeUserName(req.body.id, req.body.name, res);
 });
@@ -195,7 +195,7 @@ router.get('/verify/:id/:hash', (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [req.params.id, req.params.hash], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});
+            if (error) return res.json({error: true, message: error.message});
 
             if (rows['affectedRows'] === 0) {
                 return res.json({error: true, message: 'The user with the given information can not be updated.'});
@@ -280,7 +280,7 @@ function createGoogleUser(name, email, pp, res) {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [name, email, pp, hash], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});;
+            if (error) return res.json({error: true, message: error.message});;
 
             sendWelcomeMail(name, email);
 
@@ -296,7 +296,7 @@ async function canChangeUserName(id, name, res) {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [id], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});
+            if (error) return res.json({error: true, message: error.message});
 
             if (!rows[0]){
                 // The user with the given id was not found.
@@ -320,7 +320,7 @@ async function changeUserName(id, name, res) {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [name, id], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});;
+            if (error) return res.json({error: true, message: error.message});;
 
             return res.json({error: false, name: name});
         });

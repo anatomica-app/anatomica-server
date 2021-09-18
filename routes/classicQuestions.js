@@ -19,7 +19,7 @@ router.post('/', (req, res) => {
     })
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     let sql = "";
 
@@ -34,7 +34,7 @@ router.post('/', (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});;
+            if (error) return res.json({error: true, message: error.message});;
 
             res.json({error: false, data: rows});
         });
@@ -50,16 +50,16 @@ router.post('/withId', async (req, res) => {
     })
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [req.body.id], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});
+            if (error) return res.json({error: true, message: error.message});
 
             if(!rows[0])
-                return res.status(404).json({error: true, message: 'The question was not found on the server.'});
+                return res.json({error: true, message: 'The question was not found on the server.'});
             else
                 res.json({error: false, data: rows[0]});
         });
@@ -75,7 +75,7 @@ router.post('/withCategory', async (req, res) => {
     })
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     // Split the 'subcategories' string from commas ',' and create a list.
     // Use this list for concetanating the SQL command.
@@ -99,7 +99,7 @@ router.post('/withCategory', async (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [req.body.category, req.body.maxQuestionCount], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});
+            if (error) return res.json({error: true, message: error.message});
 
             return res.json({error: false, data: rows});
         });
@@ -120,7 +120,7 @@ router.post('/create', async (req, res) => {
     });
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     const sql = "INSERT INTO quiz_questions_classic (question, category, subcategory, answer, a, b, c, d) VALUES (?,?,?,?,?,?,?,?)";
     const data = [
@@ -138,7 +138,7 @@ router.post('/create', async (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, data, (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});
+            if (error) return res.json({error: true, message: error.message});
 
             if (rows['insertId'] === 0){
                 return res.json({error: true, message: 'The data can not be inserted.'});
@@ -164,7 +164,7 @@ router.put('/', async (req, res) => {
     });
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     const sql = "UPDATE quiz_questions_classic SET question = ?, category = ?, subcategory = ?, answer = ?, a = ?, b = ?, c = ?, d = ? WHERE id = ?";
     const data = [
@@ -183,10 +183,10 @@ router.put('/', async (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, data, (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});;
+            if (error) return res.json({error: true, message: error.message});;
 
             if (rows['affectedRows'] === 0){
-                return res.status(404).json({error: true, message: 'The question with the given id was not found.'});
+                return res.json({error: true, message: 'The question with the given id was not found.'});
             }else {
                 return res.json({error: false, data: data});
             }
@@ -201,7 +201,7 @@ router.delete('/', async (req, res) => {
     });
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     const sql = "DELETE FROM quiz_questions_classic WHERE id = ?";
 
@@ -209,10 +209,10 @@ router.delete('/', async (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [req.body.id], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});;
+            if (error) return res.json({error: true, message: error.message});;
 
             if (rows['affectedRows'] === 0){
-                return res.status(404).json({error: true, message: 'The question with the given id was not found.'});
+                return res.json({error: true, message: 'The question with the given id was not found.'});
             }else {
                 return res.json({error: false, id: req.body.id});
             }

@@ -20,7 +20,7 @@ router.get('/', (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});;
+            if (error) return res.json({error: true, message: error.message});;
 
             res.json({error: false, data: rows});
         });
@@ -34,7 +34,7 @@ router.post('/withCategory', (req, res) => {
     })
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     const sql = "SELECT * FROM quiz_subcategory WHERE category = ?";
 
@@ -42,7 +42,7 @@ router.post('/withCategory', (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [req.body.id],(error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});
+            if (error) return res.json({error: true, message: error.message});
 
             return res.json({error: false, data: rows});
         });
@@ -57,7 +57,7 @@ router.post('/', (req, res) => {
     });
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     const sql = "INSERT INTO quiz_subcategory (name, category) VALUES (?,?)";
 
@@ -65,7 +65,7 @@ router.post('/', (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [req.body.name, req.body.category], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});
+            if (error) return res.json({error: true, message: error.message});
 
             if (rows['insertId'] === 0) {
                 return res.json({error: true, message: 'The subcategory can not be created.'});
@@ -85,7 +85,7 @@ router.put('/', (req, res) => {
     });
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     const sql = "UPDATE quiz_subcategory SET name = ?, category = ? WHERE id = ?";
     const data = [
@@ -98,7 +98,7 @@ router.put('/', (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, data, (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});
+            if (error) return res.json({error: true, message: error.message});
 
             if (rows['affectedRows'] === 0) {
                 return res.json({error: true, message: 'The subcategory can not be updated.'});
@@ -116,7 +116,7 @@ router.delete('/', async (req, res) => {
     });
 
     const result = schema.validate(req.body);
-    if (result.error) return res.status(400).send(result.error.details[0].message);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     const sql = "DELETE FROM quiz_subcategory WHERE id = ?";
 
@@ -124,9 +124,9 @@ router.delete('/', async (req, res) => {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [req.body.id], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({error: true, message: error.message});
+            if (error) return res.json({error: true, message: error.message});
 
-            if (rows['affectedRows'] === 0) return res.status(404).json({error: true, message: 'The subcategory with the given id was not fount on the server.'});
+            if (rows['affectedRows'] === 0) return res.json({error: true, message: 'The subcategory with the given id was not fount on the server.'});
             else return res.json({error: false, id: req.body.id});
         });
     });
