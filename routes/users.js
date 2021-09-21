@@ -101,6 +101,7 @@ router.post("/login/google", (req, res) => {
         name: Joi.string().min(3).max(64).required(),
         email: Joi.string().min(3).max(64).required(),
         pp: Joi.string().max(1024).allow(null).required(),
+        google_id: Joi.string().required()
     });
 
     const result = schema.validate(req.body);
@@ -118,7 +119,7 @@ router.post("/login/google", (req, res) => {
             if (!rows[0]) {
                 // The user with the same email address was not
                 // found on the server. Create a new record.
-                createGoogleUser(req.body.name, req.body.email, req.body.pp, res);
+                createGoogleUser(req.body.name, req.body.email, req.body.pp, req.body.google_id, res);
             } else {
                 // We got a record with the same email address.
                 // Let's check whether it's google_account or not.
@@ -131,7 +132,7 @@ router.post("/login/google", (req, res) => {
                 } else {
                     // The email address was registered with
                     // non-google account before. Deny the process.
-                    return res.status(403).json({
+                    return res.json({
                         error: true,
                         message:
                             "The email address was registered with non-google account. Please use your password in order to login.",
@@ -407,14 +408,14 @@ async function sendWelcomeMail(name, email) {
     });
 }
 
-function createGoogleUser(name, email, pp, res) {
+function createGoogleUser(name, email, pp, google_id, res) {
     const sql =
-        "INSERT INTO users (name, email, pp, hash, active, account_google) VALUES (?,?,?,?, 1, 1)";
+        "INSERT INTO users (name, email, pp, hash, active, account_google, google_id) VALUES (?,?,?,?,1,1,?)";
     const hash = crypto.createHash("md5").update(email).digest("hex");
 
     pool.getConnection(function (err, conn) {
         if (err) return res.json({ error: true, message: err.message });
-        conn.query(sql, [name, email, pp, hash], (error, rows) => {
+        conn.query(sql, [name, email, pp, google_id, hash], (error, rows) => {
             conn.release();
             if (error) return res.json({ error: true, message: error.message });
 
