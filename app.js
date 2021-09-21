@@ -1,8 +1,22 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require("express-rate-limit");
 
 const app = express();
 const port = process.env.port || 8080;
+
+// Rate Limiter Middleware for protecting against DDoS attacks.
+app.set('trust proxy', 1);
+
+const limiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 10, // limit each IP to 10 requests per windowMs
+    handler: function (req, res, next) {
+        return res.json({error: true, message: 'Limit exceeded.'})
+    }
+});
+
+app.use(limiter);
 
 app.use(cors({
     origin: 'https://anatomica-app.com',

@@ -15,6 +15,7 @@
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "express": "^4.17.1",
+    "express-rate-limit": "^5.3.0",
     "gnpm": "0.0.8",
     "joi": "^17.4.2",
     "mysql": "^2.18.1",
