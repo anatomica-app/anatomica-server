@@ -140,7 +140,7 @@ router.post('/create', async (req, res) => {
 
     return file.save(byteArray).then(async () => {
         file.makePublic();
-        const url = `https://storage.cloud.google.com/anatomica-ec2cd.appspot.com/${fileURL}`;
+        const url = `https://storage.googleapis.com/anatomica-ec2cd.appspot.com/${fileURL}`;
         const data = [
             url,
             req.body.category,
@@ -229,7 +229,7 @@ router.put('/', async (req, res) => {
                     file.save(byteArray).then(async () => {
                         file.makePublic();
                     
-                        const url = `https://storage.cloud.google.com/anatomica-ec2cd.appspot.com/${fileURL}`;
+                        const url = `https://storage.googleapis.com/anatomica-ec2cd.appspot.com/${fileURL}`;
                     
                         data = [
                             url,

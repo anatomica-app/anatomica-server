@@ -56,7 +56,7 @@ router.post('/create', (req, res) => {
 
     return file.save(byteArray).then(async () => {
         file.makePublic();
-        const url = `https://storage.cloud.google.com/anatomica-ec2cd.appspot.com/${fileURL}`;
+        const url = `https://storage.googleapis.com/anatomica-ec2cd.appspot.com/${fileURL}`;
     
         const sql = "INSERT INTO quiz_category (name, icon) VALUES (?,?)";
     
@@ -126,7 +126,7 @@ router.put('/', (req, res) => {
                     file.save(byteArray).then(async () => {
                         file.makePublic();
                     
-                        const url = `https://storage.cloud.google.com/anatomica-ec2cd.appspot.com/${fileURL}`;
+                        const url = `https://storage.googleapis.com/anatomica-ec2cd.appspot.com/${fileURL}`;
                     
                         data = [
                             req.body.name,
