@@ -5,6 +5,7 @@ const mysql = require("mysql");
 const Joi = require("joi");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const smtp = require('nodemailer-smtp-transport');
 const {Storage} = require('@google-cloud/storage');
 const fs = require("fs");
 const path = require("path");
@@ -319,6 +320,43 @@ router.put("/changeProfilePicture", async (req, res) => {
     });
 });
 
+// Send verify email again.
+router.post("/sendVerificationEmail", (req, res) => {
+    const schema = Joi.object({
+        email: Joi.string().min(3).max(64).required(),
+        password: Joi.string().max(128).required(),
+    });
+
+    const result = schema.validate(req.body);
+    if (result.error)
+        return res.json({ error: true, message: result.error.details[0].message });
+
+    const sql = "SELECT * FROM users WHERE email = ? AND password = ?";
+
+    pool.getConnection(function (err, conn) {
+        if (err) return res.json({ error: true, message: err.message });
+        conn.query(sql, [req.body.email, req.body.password], (error, rows) => {
+            conn.release();
+            if (error) return res.json({ error: true, message: error.message });
+
+            if (!rows[0]) {
+                return res.json({ error: true, message: 'The user with the given information was not found on the server.'});
+            } else {
+                const hash = crypto
+                        .createHash("md5")
+                        .update(req.body.email)
+                        .digest("hex");
+    
+                sendRegisterMail(rows[0]['name'], req.body.email, rows[0]['id'], hash);
+                return res.json({
+                    error: false,
+                    data: "A verification email has been sent."
+                });
+            }
+        });
+    });
+});
+
 // Verify mail address.
 router.get("/verify/:id/:hash", (req, res) => {
     const sql = "UPDATE users SET active = 1 WHERE id = ? AND hash = ?";
@@ -359,22 +397,25 @@ async function sendRegisterMail(name, email, id, hash) {
         result = result.replace(/{VERIFY_URL}/g, verifyUrl);
 
         // Send the mail.
-        let transporter = nodemailer.createTransport({
-            host: process.env.MAIL_HOST,
-            port: 465,
-            secure: true,
-            auth: {
-                user: process.env.MAIL_USER,
-                pass: process.env.MAIL_PASSWORD,
-            },
-        });
+        const transport = nodemailer.createTransport(
+            smtp({
+              host: process.env.MAILJET_SMTP_SERVER,
+              port: 2525,
+              auth: {
+                user: process.env.MAILJET_API_KEY,
+                pass: process.env.MAILJET_SECRET_KEY
+              }
+            })
+          );
 
-        await transporter.sendMail({
+        const json = await transport.sendMail({
             from: "Anatomica <" + process.env.MAIL_USER + ">",
             to: email,
             subject: "Anatomica | Üyelik Aktivasyonu",
             html: result,
         });
+
+        console.log(json);
     });
 }
 
@@ -389,22 +430,25 @@ async function sendWelcomeMail(name, email) {
         result = result.replace(/{EMAIL}/g, email);
 
         // Send the mail.
-        let transporter = nodemailer.createTransport({
-            host: process.env.MAIL_HOST,
-            port: 465,
-            secure: true,
-            auth: {
-                user: process.env.MAIL_USER,
-                pass: process.env.MAIL_PASSWORD,
-            },
-        });
+        const transport = nodemailer.createTransport(
+            smtp({
+              host: process.env.MAILJET_SMTP_SERVER,
+              port: 2525,
+              auth: {
+                user: process.env.MAILJET_API_KEY,
+                pass: process.env.MAILJET_SECRET_KEY
+              }
+            })
+          );
 
-        await transporter.sendMail({
+        const json = await transport.sendMail({
             from: "Anatomica <" + process.env.MAIL_USER + ">",
             to: email,
-            subject: "Anatomica | Hoşgeldiniz",
+            subject: "Anatomica | Hoş Geldiniz",
             html: result,
         });
+
+        console.log(json);
     });
 }
 
