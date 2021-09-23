@@ -18,6 +18,7 @@
     "express-rate-limit": "^5.3.0",
     "gnpm": "0.0.8",
     "joi": "^17.4.2",
+    "jsonwebtoken": "^8.5.1",
     "mysql": "^2.18.1",
     "nodemailer": "^6.6.3",
     "nodemailer-smtp-transport": "^2.7.4"

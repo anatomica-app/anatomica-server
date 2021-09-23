@@ -14,7 +14,7 @@ const pool = mysql.createPool({
 });
 
 // Fetching all the subcategories.
-router.get('/', (req, res) => {
+router.get('/', checkAuth, (req, res) => {
     const sql = "SELECT * FROM quiz_subcategory";
 
     pool.getConnection(function(err, conn){
@@ -29,7 +29,7 @@ router.get('/', (req, res) => {
 });
 
 // Fetching all the subcategories with the given category.
-router.post('/withCategory', (req, res) => {
+router.post('/withCategory', checkAuth, (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required()
     })
@@ -51,7 +51,7 @@ router.post('/withCategory', (req, res) => {
 });
 
 // Create a new subcategory.
-router.post('/', (req, res) => {
+router.post('/', checkAuth, (req, res) => {
     const schema = Joi.object({
         name: Joi.string().required(),
         category: Joi.number().integer().required()
@@ -78,7 +78,7 @@ router.post('/', (req, res) => {
 });
 
 // Update a subcategory.
-router.put('/', (req, res) => {
+router.put('/', checkAuth, (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required(),
         name: Joi.string().required(),
@@ -111,7 +111,7 @@ router.put('/', (req, res) => {
 });
 
 // Delete a category.
-router.delete('/', async (req, res) => {
+router.delete('/', checkAuth, async (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required()
     });

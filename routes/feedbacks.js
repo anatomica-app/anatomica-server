@@ -14,7 +14,7 @@ const pool = mysql.createPool({
 });
 
 // Fetching all the feedbacks.
-router.get('/', (req, res) => {
+router.get('/', checkAuth, (req, res) => {
     const sql = "SELECT * FROM feedback";
 
     pool.getConnection(function(err, conn){
@@ -29,7 +29,7 @@ router.get('/', (req, res) => {
 });
 
 // Create a new feedback.
-router.post('/', (req, res) => {
+router.post('/', checkAuth, (req, res) => {
     const schema = Joi.object({
         userId: Joi.number().integer().required(),
         message: Joi.string().required(),
@@ -64,7 +64,7 @@ router.post('/', (req, res) => {
 });
 
 // Update a feedback.
-router.put('/', (req, res) => {
+router.put('/', checkAuth, (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required(),
         userId: Joi.number().integer().required(),
@@ -101,7 +101,7 @@ router.put('/', (req, res) => {
 })
 
 // Delete a feedback.
-router.delete('/', async (req, res) => {
+router.delete('/', checkAuth, async (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required()
     });

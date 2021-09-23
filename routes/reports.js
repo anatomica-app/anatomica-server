@@ -14,7 +14,7 @@ const pool = mysql.createPool({
 });
 
 // Fetching all the reports.
-router.get('/', (req, res) => {
+router.get('/', checkAuth, (req, res) => {
     const sql = "SELECT * FROM quiz_reports";
 
     pool.getConnection(function(err, conn){
@@ -29,7 +29,7 @@ router.get('/', (req, res) => {
 });
 
 // Create a new report.
-router.post('/', (req, res) => {
+router.post('/', checkAuth, (req, res) => {
     const schema = Joi.object({
         classic_id: Joi.number().integer().allow(null).required(),
         image_id: Joi.number().integer().allow(null).required(),
@@ -64,7 +64,7 @@ router.post('/', (req, res) => {
 });
 
 // Update a report.
-router.put('/', (req, res) => {
+router.put('/', checkAuth, (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required(),
         classic_id: Joi.number().integer().allow(null).required(),
@@ -101,7 +101,7 @@ router.put('/', (req, res) => {
 })
 
 // Delete a report.
-router.delete('/', async (req, res) => {
+router.delete('/', checkAuth, async (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required()
     });

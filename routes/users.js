@@ -9,6 +9,7 @@ const smtp = require('nodemailer-smtp-transport');
 const {Storage} = require('@google-cloud/storage');
 const fs = require("fs");
 const path = require("path");
+const jwt = require("jsonwebtoken");
 
 // ***** MySQL Connection *****
 const pool = mysql.createPool({
@@ -91,7 +92,26 @@ router.post("/login", (req, res) => {
                     error: true,
                     message: "The email or the password was incorrect.",
                 });
-            else return res.json({ error: false, data: rows[0] });
+            else {
+                const user = rows[0];
+
+                if (user['active'] === 1) {
+                    const token = jwt.sign(
+                        {
+                            id: rows[0]['id'],
+                            email: req.body.email
+                        },
+                        process.env.JWT_PRIVATE_KEY,
+                        {
+                            expiresIn: "1h"
+                        }
+                        );
+                        
+                    user['token'] = token;
+                }
+
+                return res.json({error: false, data: user});
+            }
         });
     });
 });
@@ -129,6 +149,18 @@ router.post("/login/google", (req, res) => {
                 if (user["account_google"]) {
                     // The user is google_account.
                     // Approve the login process.
+                    const token = jwt.sign(
+                        {
+                            id: user['id'],
+                            email: req.body.email
+                        },
+                        process.env.JWT_PRIVATE_KEY,
+                        {
+                            expiresIn: "1h"
+                        }
+                        );
+                        
+                    user['token'] = token;
                     return res.json({ error: false, data: user });
                 } else {
                     // The email address was registered with
@@ -465,7 +497,27 @@ function createGoogleUser(name, email, pp, google_id, res) {
 
             sendWelcomeMail(name, email);
 
-            return res.json({ error: false, id: rows["insertId"] });
+            const data = [];
+
+            if (rows['insertId'] !== 0) {
+                const token = jwt.sign(
+                    {
+                        id: rows["insertId"],
+                        email: email
+                    },
+                    process.env.JWT_PRIVATE_KEY,
+                    {
+                        expiresIn: "1h"
+                    }
+                    );
+                    
+                data['id'] = rows["insertId"]
+                data['token'] = token;
+    
+                return res.json({ error: false, id: data});
+            }else {
+                return res.json({error: true, message: 'The use can not be created.'});
+            }
         });
     });
 }

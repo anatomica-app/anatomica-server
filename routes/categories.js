@@ -6,6 +6,8 @@ const Joi = require('joi');
 const {Storage} = require('@google-cloud/storage');
 const path = require('path');
 
+const checkAuth = require('../middleware/check-auth');
+
 // ***** MySQL Connection *****
 const pool = mysql.createPool({
     user: process.env.SQL_USER,
@@ -24,7 +26,7 @@ const gcs = new Storage({
 const defaultBucket = gcs.bucket('anatomica-ec2cd.appspot.com');
 
 // Fetching all the categories.
-router.get('/', (req, res) => {
+router.get('/', checkAuth, (req, res) => {
     const sql = "SELECT * FROM quiz_category";
 
     pool.getConnection(function(err, conn){
@@ -39,7 +41,7 @@ router.get('/', (req, res) => {
 });
 
 // Create a new category.
-router.post('/create', (req, res) => {
+router.post('/create', checkAuth, (req, res) => {
     const schema = Joi.object({
         name: Joi.string().required(),
         icon: Joi.string().base64().required()
@@ -73,7 +75,7 @@ router.post('/create', (req, res) => {
 });
 
 // Update a category.
-router.put('/', (req, res) => {
+router.put('/', checkAuth, (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required(),
         name: Joi.string().required(),
@@ -179,7 +181,7 @@ router.put('/', (req, res) => {
 });
 
 // Delete a category.
-router.delete('/', async (req, res) => {
+router.delete('/', checkAuth, (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required()
     });

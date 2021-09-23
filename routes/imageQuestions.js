@@ -24,7 +24,7 @@ const gcs = new Storage({
 const defaultBucket = gcs.bucket('anatomica-ec2cd.appspot.com');
 
 // Fetching all the Image Questions
-router.post('/', (req, res) => {
+router.post('/', checkAuth, (req, res) => {
     const schema = Joi.object({
         full: Joi.boolean().required()
     })
@@ -53,7 +53,7 @@ router.post('/', (req, res) => {
 });
 
 // Fetching the Image Question From Id.
-router.post('/withId', async (req, res) => {
+router.post('/withId', checkAuth, async (req, res) => {
     const sql = "SELECT * FROM quiz_questions_image WHERE id = ?";
 
     const schema = Joi.object({
@@ -78,7 +78,7 @@ router.post('/withId', async (req, res) => {
 });
 
 // Fetching the Image Question From Category and Subcategories.
-router.post('/withCategory', async (req, res) => {
+router.post('/withCategory', checkAuth, async (req, res) => {
     const schema = Joi.object({
         category: Joi.number().integer().required(),
         subcategories: Joi.array().required(),
@@ -117,7 +117,7 @@ router.post('/withCategory', async (req, res) => {
 });
 
 // Insert a new Image Question record.
-router.post('/create', async (req, res) => {
+router.post('/create', checkAuth, async (req, res) => {
     const schema = Joi.object({
         category: Joi.number().integer().required(),
         subcategory: Joi.number().integer().required(),
@@ -171,7 +171,7 @@ router.post('/create', async (req, res) => {
 });
 
 // Update Image Question record with given id.
-router.put('/', async (req, res) => {
+router.put('/', checkAuth, async (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required(),
         category: Joi.number().integer().required(),
@@ -292,7 +292,7 @@ router.put('/', async (req, res) => {
 });
 
 // Delete Image Question record with given id.
-router.delete('/', async (req, res) => {
+router.delete('/', checkAuth, async (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required()
     });
