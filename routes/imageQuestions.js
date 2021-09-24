@@ -6,6 +6,8 @@ const Joi = require('joi');
 const {Storage} = require('@google-cloud/storage');
 const path = require('path');
 
+const checkAuth = require('../middleware/check-auth');
+
 // ***** MySQL Connection *****
 const pool = mysql.createPool({
     user: process.env.SQL_USER,

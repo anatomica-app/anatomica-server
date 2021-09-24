@@ -4,6 +4,8 @@ const router = express.Router();
 const mysql = require('mysql');
 const Joi = require('joi');
 
+const checkAuth = require('../middleware/check-auth');
+
 // ***** MySQL Connection *****
 const pool = mysql.createPool({
     user: process.env.SQL_USER,
