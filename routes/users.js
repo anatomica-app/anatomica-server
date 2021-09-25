@@ -497,8 +497,6 @@ function createGoogleUser(name, email, pp, google_id, res) {
 
             sendWelcomeMail(name, email);
 
-            const data = [];
-
             if (rows['insertId'] !== 0) {
                 const token = jwt.sign(
                     {
@@ -509,12 +507,9 @@ function createGoogleUser(name, email, pp, google_id, res) {
                     {
                         expiresIn: "1h"
                     }
-                    );
-                    
-                data['id'] = rows["insertId"]
-                data['token'] = token;
+                );
     
-                return res.json({ error: false, id: data});
+                return res.json({ error: false, id: rows["insertId"], token: token});
             }else {
                 return res.json({error: true, message: 'The use can not be created.'});
             }
