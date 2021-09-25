@@ -38,7 +38,7 @@ router.post('/', checkAuth, (req, res) => {
 
     if (req.body.full) {
         // We need to inner join the foreign keys.
-        sql = "SELECT quiz_questions_image.id, image, quiz_category.name AS category, quiz_subcategory.name AS subcategory, answer, a, b, c, d, quiz_questions_image.date_added FROM quiz_questions_image INNER JOIN quiz_category on quiz_questions_image.category = quiz_category.id INNER JOIN quiz_subcategory ON quiz_questions_image.subcategory = quiz_subcategory.id";
+        sql = "SELECT quiz_questions_image.id, quiz_questions_image.image, quiz_category.name AS category, quiz_subcategory.name AS subcategory, answer, a, b, c, d, quiz_questions_image.date_added FROM quiz_questions_image INNER JOIN quiz_category on quiz_questions_image.category = quiz_category.id INNER JOIN quiz_subcategory ON quiz_questions_image.subcategory = quiz_subcategory.id";
     }else {
         sql = "SELECT * FROM quiz_questions_image";
     }
