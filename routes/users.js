@@ -4,6 +4,7 @@ const router = express.Router();
 const mysql = require("mysql");
 const Joi = require("joi");
 const crypto = require("crypto");
+const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
 const smtp = require('nodemailer-smtp-transport');
 const {Storage} = require('@google-cloud/storage');
@@ -79,11 +80,11 @@ router.post("/login", (req, res) => {
     if (result.error)
         return res.json({ error: true, message: result.error.details[0].message });
 
-    const sql = "SELECT * FROM users WHERE email = ? AND password = ? LIMIT 1";
+    const sql = "SELECT * FROM users WHERE email = ? LIMIT 1";
 
     pool.getConnection(function (err, conn) {
         if (err) return res.json({ error: true, message: err.message });
-        conn.query(sql, [req.body.email, req.body.password], (error, rows) => {
+        conn.query(sql, [req.body.email], (error, rows) => {
             conn.release();
             if (error) return res.json({ error: true, message: error.message });
 
@@ -93,24 +94,36 @@ router.post("/login", (req, res) => {
                     message: "The email or the password was incorrect.",
                 });
             else {
+                // Compare passwords before.
                 const user = rows[0];
 
-                if (user['active'] === 1) {
-                    const token = jwt.sign(
-                        {
-                            id: rows[0]['id'],
-                            email: req.body.email
-                        },
-                        process.env.JWT_PRIVATE_KEY,
-                        {
-                            expiresIn: "1h"
-                        }
-                        );
-                        
-                    user['token'] = token;
-                }
+                bcrypt.compare(req.body.password, user['password'], function(err, result) {
+                    if (err) return res.json({ error: true, message: err.message})
 
-                return res.json({error: false, data: user});
+                    if (result) {
+                        if (user['active'] === 1) {
+                            const token = jwt.sign(
+                                {
+                                    id: rows[0]['id'],
+                                    email: req.body.email
+                                },
+                                process.env.JWT_PRIVATE_KEY,
+                                {
+                                    expiresIn: "1h"
+                                }
+                                );
+                                
+                            user['token'] = token;
+                        }
+        
+                        return res.json({error: false, data: user});
+                    }else {
+                        return res.json({
+                            error: true,
+                            message: "The email or the password was incorrect.",
+                        });
+                    }
+                });
             }
         });
     });
@@ -203,15 +216,16 @@ router.post("/", (req, res) => {
                 // Create the user.
                 const sql2 =
                     "INSERT INTO users (name, email, password, hash) VALUES (?,?,?,?)";
-                const hash = crypto
+
+                bcrypt.hash(req.body.password, 10, function(err, hashedPassword) {
+                    if (err) return res.json({ error: true, message: err.message});
+
+                    const hashedEmail = crypto
                     .createHash("md5")
                     .update(req.body.email)
                     .digest("hex");
 
-                conn.query(
-                    sql2,
-                    [req.body.name, req.body.email, req.body.password, hash],
-                    (error2, rows2) => {
+                    conn.query(sql2, [req.body.name, req.body.email, hashedPassword, hashedEmail], (error2, rows2) => {
                         conn.release();
                         if (error2)
                             return res.json({ error: true, message: error2.message });
@@ -226,12 +240,12 @@ router.post("/", (req, res) => {
                                 req.body.name,
                                 req.body.email,
                                 rows2["insertId"],
-                                hash
+                                hashedEmail
                             );
                             return res.json({ error: false, data: rows2["insertId"] });
                         }
-                    }
-                );
+                    });
+                });
             } else {
                 // The user was already exists with this email address.
                 return res.json({

@@ -12,6 +12,7 @@
   "dependencies": {
     "-": "0.0.1",
     "@google-cloud/storage": "^5.14.2",
+    "bcrypt": "^5.0.1",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "express": "^4.17.1",
