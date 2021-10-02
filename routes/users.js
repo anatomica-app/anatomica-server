@@ -29,6 +29,26 @@ const gcs = new Storage({
 
 const defaultBucket = gcs.bucket('anatomica-ec2cd.appspot.com');
 
+// Fetch all users.
+router.get("/", (req, res) => {
+    const sql = "SELECT * FROM users";
+
+    pool.getConnection(function (err, conn) {
+        if (err) return res.json({ error: true, message: err.message });
+        conn.query(sql, (error, rows) => {
+            conn.release();
+            if (error) return res.json({ error: true, message: error.message });
+
+            if (!rows[0])
+                return res.json({
+                    error: true,
+                    message: "No user found in the database.",
+                });
+            else res.json({ error: false, data: rows });
+        });
+    });
+});
+
 // Fetch user from id.
 router.get("/id/:id", (req, res) => {
     const sql = "SELECT * FROM users WHERE id = ? LIMIT 1";
