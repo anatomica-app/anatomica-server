@@ -1,21 +1,15 @@
 const express = require('express');
 const router = express.Router();
 
-const mysql = require('mysql');
 const Joi = require('joi');
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
 const checkAuth = require('../middleware/check-auth');
 
-// ***** MySQL Connection *****
-const pool = mysql.createPool({
-    user: process.env.SQL_USER,
-    password: process.env.SQL_PASSWORD,
-    database: process.env.SQL_DATABASE,
-    socketPath: `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`,
-    dateStrings: true
-});
+const pool = require('../database');
+const constants = require('./constants');
+const errorCodes = require('./errors');
 
 // Login user with credentials.
 router.post("/login", (req, res) => {

@@ -1,21 +1,15 @@
 const express = require('express');
 const router = express.Router();
 
-const mysql = require('mysql');
 const Joi = require('joi');
 const {Storage} = require('@google-cloud/storage');
 const path = require('path');
 
 const checkAuth = require('../middleware/check-auth');
 
-// ***** MySQL Connection *****
-const pool = mysql.createPool({
-    user: process.env.SQL_USER,
-    password: process.env.SQL_PASSWORD,
-    database: process.env.SQL_DATABASE,
-    socketPath: `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`,
-    dateStrings: true
-});
+const pool = require('../database');
+const constants = require('./constants');
+const errorCodes = require('./errors');
 
 // ***** Google Cloud Storage *****
 const gcs = new Storage({
@@ -66,9 +60,17 @@ router.post('/create', checkAuth, (req, res) => {
             if (err) return res.json({error: true, message: err.message});
             conn.query(sql, [req.body.name, url], (error, rows) => {
                 conn.release();
-                if (error) return res.json({error: true, message: error.message});;
-    
-                return res.json({error: false, data: rows['insertId']});
+                if (error) return res.json({error: true, message: error.message});
+
+                if (rows['insertId'] === 0) {
+                    return res.json({
+                        error: false,
+                        code: errorCodes.CATEGORY_CAN_NOT_BE_CREATED,
+                        message: 'The category can not be created.'
+                    });
+                }else {
+                    return res.json({error: false, data: rows['insertId']});
+                }
             });
         });
     });
@@ -146,7 +148,11 @@ router.put('/', checkAuth, (req, res) => {
                                 if (error) return res.json({error: true, message: error.message});
 
                                 if (rows['affectedRows'] === 0) {
-                                    return res.json({error: true, message: 'The category with the given id can not be updated.'});
+                                    return res.json({
+                                        error: true,
+                                        code: errorCodes.CATEGORY_CAN_NOT_BE_UPDATED,
+                                        message: 'The category with the given id can not be updated.'
+                                    });
                                 }else {
                                     return res.json({error: false, data: data});
                                 }
@@ -154,7 +160,11 @@ router.put('/', checkAuth, (req, res) => {
                         });
                     });
                 }else {
-                    return res.json({error: true, message: 'The category with the given id was not found on the server.'});
+                    return res.json({
+                        error: true,
+                        code: errorCodes.CATEGORY_NOT_FOUND,
+                        message: 'The category with the given id was not found on the server.'
+                    });
                 }
             });
         });
@@ -173,8 +183,14 @@ router.put('/', checkAuth, (req, res) => {
                 conn.release();
                 if (error) return res.json({error: true, message: error.message});
 
-                if (rows['affectedRows'] === 0) return res.json({error: true, message: 'The category with the given id was not found on the server.'});
-                else return res.json({error: false, data: data});
+                if (rows['affectedRows'] === 0)
+                    return res.json({
+                        error: true,
+                        code: errorCodes.CATEGORY_NOT_FOUND,
+                        message: 'The category with the given id was not found on the server.'
+                    });
+                else
+                    return res.json({error: false, data: data});
             });
         });
     }
@@ -197,7 +213,11 @@ router.delete('/', checkAuth, (req, res) => {
             conn.release();
             if (error) return res.json({error: true, message: error.message});
 
-            if (rows['affectedRows'] === 0) return res.json({error: true, message: 'The category with the given id was not fount on the server.'});
+            if (rows['affectedRows'] === 0) return res.json({
+                error: true,
+                code: errorCodes.CATEGORY_NOT_FOUND,
+                message: 'The category with the given id was not fount on the server.'
+            });
             else return res.json({error: false, id: req.body.id});
         });
     });

@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 
-const mysql = require("mysql");
 const Joi = require("joi");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
@@ -12,14 +11,9 @@ const fs = require("fs");
 const path = require("path");
 const jwt = require("jsonwebtoken");
 
-// ***** MySQL Connection *****
-const pool = mysql.createPool({
-    user: process.env.SQL_USER,
-    password: process.env.SQL_PASSWORD,
-    database: process.env.SQL_DATABASE,
-    socketPath: `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`,
-    dateStrings: true,
-});
+const pool = require('../database');
+const constants = require('./constants');
+const errorCodes = require('./errors');
 
 // ***** Google Cloud Storage *****
 const gcs = new Storage({
@@ -31,7 +25,7 @@ const defaultBucket = gcs.bucket('anatomica-ec2cd.appspot.com');
 
 // Fetch all users.
 router.get("/", (req, res) => {
-    const sql = "SELECT * FROM users";
+    const sql = "SELECT id, name, surname, email, password, UNIX_TIMESTAMP(date_joined) as date_joined, UNIX_TIMESTAMP(name_last_changed) as name_last_changed, pp, active, hash, account_type, google_id, apple_id FROM users";
 
     pool.getConnection(function (err, conn) {
         if (err) return res.json({ error: true, message: err.message });
@@ -42,6 +36,7 @@ router.get("/", (req, res) => {
             if (!rows[0])
                 return res.json({
                     error: true,
+                    code: errorCodes.USER_NOT_FOUND,
                     message: "No user found in the database.",
                 });
             else res.json({ error: false, data: rows });
@@ -51,7 +46,7 @@ router.get("/", (req, res) => {
 
 // Fetch user from id.
 router.get("/id/:id", (req, res) => {
-    const sql = "SELECT * FROM users WHERE id = ? LIMIT 1";
+    const sql = "SELECT id, name, surname, email, password, UNIX_TIMESTAMP(date_joined) as date_joined, UNIX_TIMESTAMP(name_last_changed) as name_last_changed, pp, active, hash, account_type, google_id, apple_id FROM users WHERE id = ? LIMIT 1";
 
     pool.getConnection(function (err, conn) {
         if (err) return res.json({ error: true, message: err.message });
@@ -62,6 +57,7 @@ router.get("/id/:id", (req, res) => {
             if (!rows[0])
                 return res.json({
                     error: true,
+                    code: errorCodes.USER_NOT_FOUND,
                     message: "The user with the given id was not found.",
                 });
             else res.json({ error: false, data: rows[0] });
@@ -71,7 +67,7 @@ router.get("/id/:id", (req, res) => {
 
 // Fetch user from email.
 router.get("/email/:email", (req, res) => {
-    const sql = "SELECT * FROM users WHERE email = ? LIMIT 1";
+    const sql = "SELECT id, name, surname, email, password, UNIX_TIMESTAMP(date_joined) as date_joined, UNIX_TIMESTAMP(name_last_changed) as name_last_changed, pp, active, hash, account_type, google_id, apple_id FROM users WHERE email = ? LIMIT 1";
 
     pool.getConnection(function (err, conn) {
         if (err) return res.json({ error: true, message: err.message });
@@ -82,6 +78,7 @@ router.get("/email/:email", (req, res) => {
             if (!rows[0])
                 return res.json({
                     error: true,
+                    code: errorCodes.USER_NOT_FOUND,
                     message: "The user with the given email address was not found.",
                 });
             else res.json({ error: false, data: rows[0] });
@@ -111,39 +108,51 @@ router.post("/login", (req, res) => {
             if (!rows[0])
                 return res.json({
                     error: true,
+                    code: errorCodes.WRONG_EMAIL_OR_PASSWORD,
                     message: "The email or the password was incorrect.",
                 });
             else {
-                // Compare passwords before.
+                // We should check whether the user authenticated with default authentication or not.
                 const user = rows[0];
 
-                bcrypt.compare(req.body.password, user['password'], function(err, result) {
-                    if (err) return res.json({ error: true, message: err.message})
-
-                    if (result) {
-                        if (user['active'] === 1) {
-                            const token = jwt.sign(
-                                {
-                                    id: rows[0]['id'],
-                                    email: req.body.email
-                                },
-                                process.env.JWT_PRIVATE_KEY,
-                                {
-                                    expiresIn: "1h"
-                                }
-                                );
-                                
-                            user['token'] = token;
+                if (user['account_type'] === constants.ACCOUNT_DEFAULT) {
+                    // User authenticated with default authentication.
+                    // Compare passwords before.
+                    bcrypt.compare(req.body.password, user['password'], function(err, result) {
+                        if (err) return res.json({ error: true, message: err.message})
+    
+                        if (result) {
+                            if (user['active'] === 1) {
+                                const token = jwt.sign(
+                                    {
+                                        id: rows[0]['id'],
+                                        email: req.body.email
+                                    },
+                                    process.env.JWT_PRIVATE_KEY,
+                                    {
+                                        expiresIn: "1h"
+                                    }
+                                    );
+                                    
+                                user['token'] = token;
+                            }
+            
+                            return res.json({error: false, data: user});
+                        }else {
+                            return res.json({
+                                error: true,
+                                code: errorCodes.WRONG_EMAIL_OR_PASSWORD,
+                                message: "The email or the password was incorrect.",
+                            });
                         }
-        
-                        return res.json({error: false, data: user});
-                    }else {
-                        return res.json({
-                            error: true,
-                            message: "The email or the password was incorrect.",
-                        });
-                    }
-                });
+                    });
+                }else {
+                    return res.json({
+                        error: true,
+                        code: errorCodes.USER_REGISTERED_WITH_ANOTHER_PROVIDER,
+                        message: "The email address is registered with another service. (Google or Apple)",
+                    });
+                }
             }
         });
     });
@@ -153,6 +162,7 @@ router.post("/login", (req, res) => {
 router.post("/login/google", (req, res) => {
     const schema = Joi.object({
         name: Joi.string().min(3).max(64).required(),
+        surname: Joi.string().max(64).required(),
         email: Joi.string().min(3).max(64).required(),
         pp: Joi.string().max(1024).allow(null).required(),
         google_id: Joi.string().required()
@@ -173,13 +183,13 @@ router.post("/login/google", (req, res) => {
             if (!rows[0]) {
                 // The user with the same email address was not
                 // found on the server. Create a new record.
-                createGoogleUser(req.body.name, req.body.email, req.body.pp, req.body.google_id, res);
+                createGoogleUser(req.body.name, req.body.surname, req.body.email, req.body.pp, req.body.google_id, res);
             } else {
                 // We got a record with the same email address.
                 // Let's check whether it's google_account or not.
                 let user = rows[0];
 
-                if (user["account_google"]) {
+                if (user['account_type'] === constants.ACCOUNT_GOOGLE) {
                     // The user is google_account.
                     // Approve the login process.
                     const token = jwt.sign(
@@ -200,10 +210,57 @@ router.post("/login/google", (req, res) => {
                     // non-google account before. Deny the process.
                     return res.json({
                         error: true,
+                        code: errorCodes.USER_REGISTERED_WITH_ANOTHER_PROVIDER,
                         message:
-                            "The email address was registered with non-google account. Please use your password in order to login.",
+                            "The email address was registered with another provider. (Password or Apple)",
                     });
                 }
+            }
+        });
+    });
+});
+
+// Login user with Apple.
+router.post("/login/apple", (req, res) => {
+    const schema = Joi.object({
+        apple_id: Joi.string().required()
+    });
+
+    const result = schema.validate(req.body);
+    if (result.error)
+        return res.json({ error: true, message: result.error.details[0].message });
+
+    const sql = "SELECT * FROM users WHERE apple_id = ? LIMIT 1";
+
+    pool.getConnection(function (err, conn) {
+        if (err) return res.json({ error: true, message: err.message });
+        conn.query(sql, [req.body.apple_id], (error, rows) => {
+            conn.release();
+            if (error) return res.json({ error: true, message: error.message });
+
+            if (!rows[0]) {
+                return res.json({
+                    error: true,
+                    code: errorCodes.USER_NOT_FOUND,
+                    message: "The user with the given Apple ID was not found on the server.",
+                });
+            }else {
+                const user = rows[0];
+
+                const token = jwt.sign(
+                    {
+                        id: rows[0]['id'],
+                        email: req.body.email
+                    },
+                    process.env.JWT_PRIVATE_KEY,
+                    {
+                        expiresIn: "1h"
+                    }
+                    );
+                    
+                user['token'] = token;
+
+                return res.json({error: false, data: user});
             }
         });
     });
@@ -213,6 +270,7 @@ router.post("/login/google", (req, res) => {
 router.post("/", (req, res) => {
     const schema = Joi.object({
         name: Joi.string().min(3).max(64).required(),
+        surname: Joi.string().max(64).required(),
         email: Joi.string().min(3).max(64).required(),
         password: Joi.string().max(128).required(),
     });
@@ -235,7 +293,7 @@ router.post("/", (req, res) => {
                 // There was no record with the same email address.
                 // Create the user.
                 const sql2 =
-                    "INSERT INTO users (name, email, password, hash) VALUES (?,?,?,?)";
+                    "INSERT INTO users (name, surname, email, password, hash) VALUES (?,?,?,?,?)";
 
                 bcrypt.hash(req.body.password, 10, function(err, hashedPassword) {
                     if (err) return res.json({ error: true, message: err.message});
@@ -245,24 +303,25 @@ router.post("/", (req, res) => {
                     .update(req.body.email)
                     .digest("hex");
 
-                    conn.query(sql2, [req.body.name, req.body.email, hashedPassword, hashedEmail], (error2, rows2) => {
+                    conn.query(sql2, [req.body.name, req.body.surname, req.body.email, hashedPassword, hashedEmail], (error2, rows2) => {
                         conn.release();
                         if (error2)
                             return res.json({ error: true, message: error2.message });
 
-                        if (rows2["insertId"] === 0) {
+                        if (rows2['insertId'] === 0) {
                             return res.json({
                                 error: true,
-                                message: "The user can not be created.",
+                                code: errorCodes.USER_CAN_NOT_BE_CREATED,
+                                message: 'The user can not be created.',
                             });
                         } else {
                             sendRegisterMail(
                                 req.body.name,
                                 req.body.email,
-                                rows2["insertId"],
+                                rows2['insertId'],
                                 hashedEmail
                             );
-                            return res.json({ error: false, data: rows2["insertId"] });
+                            return res.json({ error: false, data: rows2['insertId'] });
                         }
                     });
                 });
@@ -270,7 +329,8 @@ router.post("/", (req, res) => {
                 // The user was already exists with this email address.
                 return res.json({
                     error: true,
-                    message: "The user already exists with this email address.",
+                    code: errorCodes.USER_ALREADY_EXISTS,
+                    message: 'The user already exists with this email address.',
                 });
             }
         });
@@ -281,6 +341,7 @@ router.post("/", (req, res) => {
 router.post("/google", (req, res) => {
     const schema = Joi.object({
         name: Joi.string().min(3).max(64).required(),
+        surname: Joi.string().max(64).required(),
         email: Joi.string().min(3).max(64).required(),
         pp: Joi.string().max(1024).allow(null).required(),
     });
@@ -289,7 +350,76 @@ router.post("/google", (req, res) => {
     if (result.error)
         return res.json({ error: true, message: result.error.details[0].message });
 
-    createGoogleUser(req.body.name, req.body.email, req.body.pp, res);
+    createGoogleUser(req.body.name, req.body.surname, req.body.email, req.body.pp, res);
+});
+
+// Create a user with Apple account.
+router.post("/apple/create", (req, res) => {
+    const schema = Joi.object({
+        name: Joi.string().min(3).max(64).required(),
+        surname: Joi.string().max(64).required(),
+        email: Joi.string().min(3).max(64).required(),
+        apple_id: Joi.string().required()
+    });
+
+    const result = schema.validate(req.body);
+    if (result.error)
+        return res.json({ error: true, message: result.error.details[0].message });
+
+    const sql = "SELECT * FROM users WHERE email = ? LIMIT 1";
+
+    pool.getConnection(function (err, conn) {
+        if (err) return res.json({ error: true, message: err.message });
+            conn.query(sql, [req.body.email], (error, rows) => {
+            if (error) {
+                conn.release();
+                return res.json({ error: true, message: error.message });
+            }
+
+            if (!rows[0]) {
+                const sql2 = "INSERT INTO users (name, surname, email, hash, active, account_type, apple_id) VALUES (?,?,?,?,1,?,?)";
+                const hash = crypto.createHash("md5").update(req.body.email).digest("hex");
+
+                conn.query(sql2, [req.body.name, req.body.surname, req.body.email, hash, constants.ACCOUNT_APPLE, req.body.apple_id], (error2, rows2) => {
+                    if (error2) {
+                        conn.release();
+                        return res.json({ error: true, message: error2.message });
+                    }
+
+                    if (rows2['insertId'] !== 0) {
+                        const token = jwt.sign(
+                            {
+                                id: rows2['insertId'],
+                                email: req.body.email
+                            },
+                            process.env.JWT_PRIVATE_KEY,
+                            {
+                                expiresIn: "1h"
+                            }
+                        );
+
+                        sendWelcomeMail(req.body.name, req.body.email);
+            
+                        return res.json({ error: false, id: rows2["insertId"], token: token});
+                    }else {
+                        return res.json({
+                            error: true,
+                            code: errorCodes.USER_CAN_NOT_BE_CREATED,
+                            message: 'The user can not be created.'
+                        });
+                    }
+                });
+            }else {
+                // The user was already exists with this email address.
+                return res.json({
+                    error: true,
+                    code: errorCodes.USER_ALREADY_EXISTS,
+                    message: 'The user already exists with this email address.',
+                });
+            }
+        });
+    });
+    
 });
 
 // Change user name.
@@ -323,7 +453,7 @@ router.put("/changeProfilePicture", async (req, res) => {
     // First we need to check if there is a user and
     // user previously have a profile picture.
     // If so we delete the profile picture and upload the new one.
-    sql = "SELECT pp FROM users WHERE id = ? LIMIT 1";
+    sql = "SELECT account_type, pp FROM users WHERE id = ? LIMIT 1";
     pool.getConnection(function (err, conn) {
         if (err) return res.json({ error: true, message: err.message });
         conn.query(sql, [req.body.id], (error, rows) => {
@@ -333,12 +463,13 @@ router.put("/changeProfilePicture", async (req, res) => {
             if (!rows[0]) {
                 return res.json({error: true, message: 'The user with the given id was not found on the server.'});
             } else {
-                if (rows[0]['pp'] !== null && rows[0]['pp'] !== undefined) {
+                if (rows[0]['account_type'] === constants.ACCOUNT_DEFAULT && rows[0]['pp'] !== null && rows[0]['pp'] !== undefined) {
                     // There was a profile picture before.
                     // Delete the file. We need to strip the url
                     // in order to get the bucket file path.
                     // Let's strip down before /quiz_question_images/..
                     // https://storage.googleapis.com/anatomica-ec2cd.appspot.com/user_profile_images/1631631802266.jpg
+
                     let image = rows[0]['pp'];
                     let imageUrl = image.split("anatomica-ec2cd.appspot.com/")[1];
     
@@ -370,10 +501,11 @@ router.put("/changeProfilePicture", async (req, res) => {
                             conn.release();
                             if (error) return res.json({ error: true, message: error.message });
     
-                            if (rows["affectedRows"] === 0) {
+                            if (rows['affectedRows'] === 0) {
                                 return res.json({
                                     error: true,
-                                    message: "The user with the given id can not be updated.",
+                                    code: errorCodes.PROFILE_PICTURE_CAN_NOT_BE_CHANGED,
+                                    message: 'The user with the given id can not be updated.',
                                 });
                             } else {
                                 return res.json({ error: false, data: data });
@@ -406,18 +538,46 @@ router.post("/sendVerificationEmail", (req, res) => {
             if (error) return res.json({ error: true, message: error.message });
 
             if (!rows[0]) {
-                return res.json({ error: true, message: 'The user with the given information was not found on the server.'});
+                return res.json({
+                    error: true,
+                    code: errorCodes.USER_NOT_FOUND,
+                    message: 'The user with the given information was not found on the server.'
+                });
             } else {
-                const hash = crypto
+                const user = rows[0];
+
+                // Let's check if the user authenticated with password or any
+                // other provider. If default send, if not deny.
+                if (user['account_type'] === constants.ACCOUNT_DEFAULT) {
+                    // Also we should check if the user activated his/her account before.
+                    // We shouldn't send redundant mails.
+                    if (user['active'] === 0) {
+                        // User hasn't activated his/her account yet.
+                        const hash = crypto
                         .createHash("md5")
                         .update(req.body.email)
                         .digest("hex");
     
-                sendRegisterMail(rows[0]['name'], req.body.email, rows[0]['id'], hash);
-                return res.json({
-                    error: false,
-                    data: "A verification email has been sent."
-                });
+                        sendRegisterMail(rows[0]['name'], req.body.email, rows[0]['id'], hash);
+    
+                        return res.json({
+                            error: false,
+                            data: "A verification email has been sent."
+                        });
+                    }else {
+                        return res.json({
+                            error: true,
+                            code: errorCodes.ACCOUNT_ALREADY_ACTIVATED,
+                            data: "The user with the given id already activated his/her account. No need to verify mail address."
+                        });
+                    }
+                }else {
+                    return res.json({
+                        error: true,
+                        code: errorCodes.NO_NEED_TO_VERIFY,
+                        data: "The user with the given id authenticated with other providers. No need to verify mail address."
+                    });
+                }
             }
         });
     });
@@ -433,15 +593,21 @@ router.get("/verify/:id/:hash", (req, res) => {
             conn.release();
             if (error) return res.json({ error: true, message: error.message });
 
-            if (rows["affectedRows"] === 0) {
+            if (rows['affectedRows'] === 0) {
                 return res.json({
                     error: true,
+                    code: errorCodes.USER_CAN_NOT_BE_VERIFIED,
                     message: "The user with the given information can not be updated.",
                 });
             } else {
-                return res.json({
-                    error: false,
-                    data: "Your account has been verified. You can now login to the application.",
+                let pagePath = path.join(__dirname, "../page_templates/verify_mail.html");
+
+                fs.readFile(pagePath, function(err, data) {
+                    if (err) return res.json({ error: true, message: err.message });
+
+                    res.writeHead(200, {'Content-Type': 'text/html'});
+                    res.write(data);
+                    return res.end();
                 });
             }
         });
@@ -456,7 +622,7 @@ async function sendRegisterMail(name, email, id, hash) {
     fs.readFile(mailPath, "utf8", async function (err, data) {
         if (err) return err.message;
 
-        let verifyUrl = `https://anatomica-ec2cd.ew.r.appspot.com/v1/users/verify/${id}/${hash}`;
+        let verifyUrl = `https://anatomica-scx43dzaka-ew.a.run.app/v1/users/verify/${id}/${hash}`;
 
         let result = data.replace(/{NAME}/g, name);
         result = result.replace(/{EMAIL}/g, email);
@@ -518,18 +684,16 @@ async function sendWelcomeMail(name, email) {
     });
 }
 
-function createGoogleUser(name, email, pp, google_id, res) {
+function createGoogleUser(name, surname, email, pp, google_id, res) {
     const sql =
-        "INSERT INTO users (name, email, pp, hash, active, account_google, google_id) VALUES (?,?,?,?,1,1,?)";
+        "INSERT INTO users (name, surname, email, pp, hash, active, account_type, google_id) VALUES (?,?,?,?,?,1,?,?)";
     const hash = crypto.createHash("md5").update(email).digest("hex");
 
     pool.getConnection(function (err, conn) {
         if (err) return res.json({ error: true, message: err.message });
-        conn.query(sql, [name, email, pp, google_id, hash], (error, rows) => {
+        conn.query(sql, [name, surname, email, pp, hash, constants.ACCOUNT_GOOGLE, google_id], (error, rows) => {
             conn.release();
             if (error) return res.json({ error: true, message: error.message });
-
-            sendWelcomeMail(name, email);
 
             if (rows['insertId'] !== 0) {
                 const token = jwt.sign(
@@ -543,9 +707,15 @@ function createGoogleUser(name, email, pp, google_id, res) {
                     }
                 );
     
+                sendWelcomeMail(name, email);
+
                 return res.json({ error: false, id: rows["insertId"], token: token});
             }else {
-                return res.json({error: true, message: 'The use can not be created.'});
+                return res.json({
+                    error: true,
+                    code: errorCodes.USER_CAN_NOT_BE_CREATED,
+                    message: 'The user can not be created.'
+                });
             }
         });
     });
@@ -565,6 +735,7 @@ async function canChangeUserName(id, name, res) {
                 // The user with the given id was not found.
                 return res.json({
                     error: true,
+                    code: errorCodes.USER_NOT_FOUND,
                     message: "The user with the given id was not found on the server.",
                 });
             } else {
@@ -572,6 +743,7 @@ async function canChangeUserName(id, name, res) {
                     // User can't change his/her name.
                     return res.json({
                         error: true,
+                        code: errorCodes.NAME_CAN_NOT_BE_CHANGED_DUE_TO_LIMIT,
                         message: "User name can not be changed more than once in a month.",
                     });
                 } else {

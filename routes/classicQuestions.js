@@ -1,19 +1,13 @@
 const express = require('express');
 const router = express.Router();
 
-const mysql = require('mysql');
 const Joi = require('joi');
 
 const checkAuth = require('../middleware/check-auth');
 
-// ***** MySQL Connection *****
-const pool = mysql.createPool({
-    user: process.env.SQL_USER,
-    password: process.env.SQL_PASSWORD,
-    database: process.env.SQL_DATABASE,
-    socketPath: `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`,
-    dateStrings: true
-});
+const pool = require('../database');
+const constants = require('./constants');
+const errorCodes = require('./errors');
 
 // Fetching all the Classic Questions
 router.post('/', checkAuth, (req, res) => {
@@ -62,7 +56,11 @@ router.post('/withId', checkAuth, async (req, res) => {
             if (error) return res.json({error: true, message: error.message});
 
             if(!rows[0])
-                return res.json({error: true, message: 'The question was not found on the server.'});
+                return res.json({
+                    error: true, 
+                    code: errorCodes.QUESTION_NOT_FOUND,
+                    message: 'The question was not found on the server.'
+                });
             else
                 res.json({error: false, data: rows[0]});
         });
@@ -143,7 +141,11 @@ router.post('/create', checkAuth, async (req, res) => {
             if (error) return res.json({error: true, message: error.message});
 
             if (rows['insertId'] === 0){
-                return res.json({error: true, message: 'The data can not be inserted.'});
+                return res.json({
+                    error: true,
+                    code: errorCodes.QUESTION_CAN_NOT_BE_CREATED,
+                    message: 'The data can not be inserted.'
+                });
             }else {
                 return res.json({error: false, data: rows['insertId']});
             }
@@ -188,7 +190,11 @@ router.put('/', checkAuth, async (req, res) => {
             if (error) return res.json({error: true, message: error.message});;
 
             if (rows['affectedRows'] === 0){
-                return res.json({error: true, message: 'The question with the given id was not found.'});
+                return res.json({
+                    error: true,
+                    code: errorCodes.QUESTION_NOT_FOUND,
+                    message: 'The question with the given id was not found.'
+                });
             }else {
                 return res.json({error: false, data: data});
             }
@@ -214,7 +220,11 @@ router.delete('/', checkAuth, async (req, res) => {
             if (error) return res.json({error: true, message: error.message});;
 
             if (rows['affectedRows'] === 0){
-                return res.json({error: true, message: 'The question with the given id was not found.'});
+                return res.json({
+                    error: true,
+                    code: errorCodes.QUESTION_NOT_FOUND,
+                    message: 'The question with the given id was not found.'
+                });
             }else {
                 return res.json({error: false, id: req.body.id});
             }

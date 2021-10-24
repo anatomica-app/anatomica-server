@@ -1,19 +1,13 @@
 const express = require('express');
 const router = express.Router();
 
-const mysql = require('mysql');
 const Joi = require('joi');
 
 const checkAuth = require('../middleware/check-auth');
 
-// ***** MySQL Connection *****
-const pool = mysql.createPool({
-    user: process.env.SQL_USER,
-    password: process.env.SQL_PASSWORD,
-    database: process.env.SQL_DATABASE,
-    socketPath: `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`,
-    dateStrings: true
-});
+const pool = require('../database');
+const constants = require('./constants');
+const errorCodes = require('./errors');
 
 // Fetching all the subcategories.
 router.get('/', checkAuth, (req, res) => {
@@ -71,7 +65,11 @@ router.post('/', checkAuth, (req, res) => {
             if (error) return res.json({error: true, message: error.message});
 
             if (rows['insertId'] === 0) {
-                return res.json({error: true, message: 'The subcategory can not be created.'});
+                return res.json({
+                    error: true,
+                    code: errorCodes.SUBCATEGORY_CAN_NOT_BE_CREATED,
+                    message: 'The subcategory can not be created.'
+                });
             }else {
                 return res.json({error: false, data: rows['insertId']});
             }
@@ -104,7 +102,11 @@ router.put('/', checkAuth, (req, res) => {
             if (error) return res.json({error: true, message: error.message});
 
             if (rows['affectedRows'] === 0) {
-                return res.json({error: true, message: 'The subcategory can not be updated.'});
+                return res.json({
+                    error: true,
+                    code: errorCodes.SUBCATEGORY_CAN_NOT_BE_UPDATED,
+                    message: 'The subcategory can not be updated.'
+                });
             }else {
                 return res.json({error: false, data: data});
             }
@@ -129,7 +131,11 @@ router.delete('/', checkAuth, async (req, res) => {
             conn.release();
             if (error) return res.json({error: true, message: error.message});
 
-            if (rows['affectedRows'] === 0) return res.json({error: true, message: 'The subcategory with the given id was not fount on the server.'});
+            if (rows['affectedRows'] === 0) return res.json({
+                error: true,
+                code: errorCodes.SUBCATEGORY_NOT_FOUND,
+                message: 'The subcategory with the given id was not fount on the server.'
+            });
             else return res.json({error: false, id: req.body.id});
         });
     });
