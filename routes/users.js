@@ -201,7 +201,7 @@ router.post("/login/google", (req, res) => {
                         {
                             expiresIn: "1h"
                         }
-                        );
+                    );
                         
                     user['token'] = token;
                     return res.json({ error: false, data: user });
@@ -614,6 +614,252 @@ router.get("/verify/:id/:hash", (req, res) => {
     });
 });
 
+// Send password reset request.
+router.post("/password/resetMail/", (req, res) => {
+    const schema = Joi.object({
+        email: Joi.string().min(3).max(64).required()
+    });
+
+    const result = schema.validate(req.body);
+    if (result.error)
+        return res.json({ error: true, message: result.error.details[0].message });
+
+    const sql = "SELECT * FROM users WHERE email = ?";
+
+    pool.getConnection(function (err, conn) {
+        if (err) return res.json({ error: true, message: err.message });
+        conn.query(sql, [req.body.email], (error, rows) => {
+            conn.release();
+            if (error) return res.json({ error: true, message: error.message });
+
+            if (!rows[0]) {
+                return res.json({
+                    error: true,
+                    code: errorCodes.USER_NOT_FOUND,
+                    message: 'The user with the given information was not found on the server.'
+                });
+            } else {
+                const user = rows[0];
+
+                // Create a JWT for sending link to the user.
+                const token = jwt.sign(
+                    {
+                        id: user['id'],
+                        email: req.body.email
+                    },
+                    process.env.JWT_PRIVATE_KEY_RESET,
+                    {
+                        expiresIn: "1h"
+                    }
+                );
+
+                // Hash this token in order to save it in the database.
+                bcrypt.hash(token, 10, function(err, hashedToken) {
+                    if (err) return res.json({ error: true, message: err.message});
+
+                    // We got the hashed token.
+                    // Let's save it to the database.
+                    const sql2 = "UPDATE users SET reset_token = ? WHERE id = ?";
+
+                    conn.query(sql2, [hashedToken, user['id']], (error2, rows2) => {
+                        if (error2) return res.json({ error: true, message: error2.message });
+
+                        if (rows2['affectedRows'] !== 0) {
+                            // Everything is awesome! Let's send the email.
+
+                            sendPasswordResetMail(user['id'], req.body.email, token);
+
+                            return res.json({
+                                error: false,
+                                message: 'The password reset mail has been successfully sent.'
+                            });
+                        }else {
+                            return res.json({
+                                error: true,
+                                code: errorCodes.PASSWORD_RESET_TOKEN_CANNOT_BE_CREATED,
+                                message: 'There was an error while trying to create the reset password token.'
+                            });
+                        }
+                    });
+                });
+            }
+        });
+    });
+});
+
+// Reset password page.
+router.get("/password/reset/:id/:token", (req, res) => {
+    // Let's first check if the token is valid.
+    try {
+        const decoded = jwt.verify(req.params.token, process.env.JWT_PRIVATE_KEY_RESET);
+
+        const sql = "SELECT * FROM users WHERE id = ?";
+
+        pool.getConnection(function (err, conn) {
+            if (err) return res.json({ error: true, message: err.message });
+            conn.query(sql, [req.params.id], (error, rows) => {
+                conn.release();
+                if (error) return res.json({ error: true, message: error.message });
+    
+                if (!rows[0]) {
+                    fs.readFile(path.join(__dirname, "../page_templates/expired_token.html"), function(err, data) {
+                        if (err) return res.json({ error: true, message: err.message });
+            
+                        res.writeHead(200, {'Content-Type': 'text/html'});
+                        res.write(data);
+                        return res.end();
+                    });
+                }else {
+                    const user = rows[0];
+                    // Let's check if the reset_token is NULL.
+    
+                    if (!user.reset_token) {
+                        // Reset token is NULL.
+                        fs.readFile(path.join(__dirname, "../page_templates/expired_token.html"), function(err, data) {
+                            if (err) return res.json({ error: true, message: err.message });
+                
+                            res.writeHead(200, {'Content-Type': 'text/html'});
+                            res.write(data);
+                            return res.end();
+                        });
+                    }else {
+                        // Let's compare the JWT and hashed token.
+                        bcrypt.compare(req.params.token, user.reset_token, function(err, result) {
+                            if (err) return res.json({ error: true, message: err.message})
+        
+                            if (result) {
+                                // The reset token is valid. Show the HTML.
+                                let pagePath = path.join(__dirname, "../page_templates/reset_password.html");
+    
+                                fs.readFile(pagePath, function(err, data) {
+                                    if (err) return res.json({ error: true, message: err.message });
+                
+                                    res.writeHead(200, {'Content-Type': 'text/html'});
+                                    res.write(data);
+                                    return res.end();
+                                });
+                            }else {
+                                // Reset token is invalid or expired.
+                                fs.readFile(path.join(__dirname, "../page_templates/expired_token.html"), function(err, data) {
+                                    if (err) return res.json({ error: true, message: err.message });
+                        
+                                    res.writeHead(200, {'Content-Type': 'text/html'});
+                                    res.write(data);
+                                    return res.end();
+                                });
+                            }
+                        });
+                    }
+                }
+            });
+        });
+    } catch (error) {
+        fs.readFile(path.join(__dirname, "../page_templates/expired_token.html"), function(err, data) {
+            if (err) return res.json({ error: true, message: err.message });
+
+            res.writeHead(200, {'Content-Type': 'text/html'});
+            res.write(data);
+            return res.end();
+        });
+    }    
+});
+
+// Reset password.
+router.put("/password/update", (req, res) => {
+    const schema = Joi.object({
+        id: Joi.number().required(),
+        token: Joi.string().required(),
+        password: Joi.string().required()
+    });
+
+    console.log('Reset password body: ' + req.body);
+
+    const result = schema.validate(req.body);
+    if (result.error)
+        return res.json({ error: true, message: result.error.details[0].message });
+
+    const sql = "SELECT * FROM users WHERE id = ?";
+
+    pool.getConnection(function (err, conn) {
+        if (err) return res.json({ error: true, message: err.message });
+        conn.query(sql, [req.body.id], (error, rows) => {
+            if (error) return res.json({ error: true, message: error.message });
+
+            console.log('Reset password user: ' + rows);
+
+            if (!rows[0]) {
+                return res.json({
+                    error: true,
+                    code: errorCodes.USER_NOT_FOUND,
+                    message: "The user with the given information can not be found.",
+                });
+            }else {
+                const user = rows[0];
+                // Let's check if the reset_token is NULL.
+
+                if (!user['reset_token']) {
+                    // Reset token is NULL.
+                    return res.json({
+                        error: true,
+                        code: errorCodes.INVALID_RESET_TOKEN,
+                        message: "Invalid or expired reset token.",
+                    });
+                }else {
+                    // Let's compare the JWT and hashed token.
+                    bcrypt.compare(req.body.token, user['reset_token'], function(err, result) {
+                        if (err) return res.json({ error: true, message: err.message})
+    
+                        if (result) {
+                            // The reset token is valid. Show the HTML.
+
+                            bcrypt.hash(req.body.password, 10, function(err, hashedPassword) {
+                                if (err) return res.json({ error: true, message: err.message});
+
+                                if (user['password'] === hashedPassword) {
+                                    // New password is same as old password.
+                                    return res.json({
+                                        error: true,
+                                        code: errorCodes.NEW_PASSWORD_CANNOT_BE_SAME_AS_OLD,
+                                        message: 'Your new password can not be the same as your old one.'
+                                    })
+                                }else {
+                                    const sql2 = "UPDATE users SET password = ?, reset_token = ? WHERE id = ?";
+
+                                    conn.query(sql2, [hashedPassword, null, req.body.id], (error2, rows2) => {
+                                        conn.release();
+                                        if (error2) return res.json({ error: true, message: error2.message });
+    
+                                        if (rows2['affectedRows'] !== 0) {
+                                            // Password changed successfully.
+                                            return res.json({
+                                                error: false,
+                                                message: "Your password was changed successfully.",
+                                            });
+                                        }else {
+                                            return res.json({
+                                                error: true,
+                                                code: errorCodes.PASSWORD_CANNOT_BE_CHANGED,
+                                                message: "The password can not be changed. Please try again later.",
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        }else {
+                            // Reset token is invalid or expired.
+                            return res.json({
+                                error: true,
+                                code: errorCodes.INVALID_RESET_TOKEN,
+                                message: "Invalid or expired reset token.",
+                            });
+                        }
+                    });
+                }
+            }
+        });
+    });    
+});
+
 // ***** Helper Functions *****
 async function sendRegisterMail(name, email, id, hash) {
     let mailPath = path.join(__dirname, "../mail_templates/register.html");
@@ -677,6 +923,40 @@ async function sendWelcomeMail(name, email) {
             from: "Anatomica <" + process.env.MAIL_USER + ">",
             to: email,
             subject: "Anatomica | Hoş Geldiniz",
+            html: result,
+        });
+
+        console.log(json);
+    });
+}
+
+async function sendPasswordResetMail(id, email, token) {
+    let mailPath = path.join(__dirname, "../mail_templates/reset_password.html");
+    let resetURL = 'https://anatomica-scx43dzaka-ew.a.run.app/v1/users/password/reset/' + id + '/' + token;
+
+    // Prepare the HTML with replacing the placeholder strings.
+    fs.readFile(mailPath, "utf8", async function (err, data) {
+        if (err) return err.message;
+
+        let result = data.replace(/{RESET_URL}/g, resetURL);
+        result = result.replace(/{EMAIL}/g, email);
+
+        // Send the mail.
+        const transport = nodemailer.createTransport(
+            smtp({
+              host: process.env.MAILJET_SMTP_SERVER,
+              port: 2525,
+              auth: {
+                user: process.env.MAILJET_API_KEY,
+                pass: process.env.MAILJET_SECRET_KEY
+              }
+            })
+          );
+
+        const json = await transport.sendMail({
+            from: "Anatomica <" + process.env.MAIL_USER + ">",
+            to: email,
+            subject: "Anatomica | Parola Sıfırlama Talebi",
             html: result,
         });
 
