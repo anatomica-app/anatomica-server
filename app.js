@@ -32,9 +32,13 @@ const usersRoute = require('./routes/users');
 const feedbacksRoute = require('./routes/feedbacks');
 const reportsRoute = require('./routes/reports');
 const adminPanelRoute = require('./routes/adminPanel');
+const contactRoute = require('./routes/contact');
 
 // Limit the payload for 10 MB.
 app.use(express.json({limit: 10000000}));
+
+// Serving static files under public directory.
+app.use(express.static('public'));
 
 // ***** Server Methods *****
 
@@ -46,6 +50,7 @@ app.use('/v1/users', usersRoute);
 app.use('/v1/feedback', feedbacksRoute);
 app.use('/v1/report', reportsRoute);
 app.use('/v1/admin-panel', adminPanelRoute);
+app.use('/v1/contact', contactRoute);
 
 app.listen(port, () => {
     console.log('App listening at port: ' + port);
