@@ -6,7 +6,7 @@ const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
 const smtp = require('nodemailer-smtp-transport');
-const {Storage} = require('@google-cloud/storage');
+const { Storage } = require('@google-cloud/storage');
 const fs = require("fs");
 const path = require("path");
 const jwt = require("jsonwebtoken");
@@ -118,9 +118,9 @@ router.post("/login", (req, res) => {
                 if (user['account_type'] === constants.ACCOUNT_DEFAULT) {
                     // User authenticated with default authentication.
                     // Compare passwords before.
-                    bcrypt.compare(req.body.password, user['password'], function(err, result) {
-                        if (err) return res.json({ error: true, message: err.message})
-    
+                    bcrypt.compare(req.body.password, user['password'], function (err, result) {
+                        if (err) return res.json({ error: true, message: err.message })
+
                         if (result) {
                             if (user['active'] === 1) {
                                 const token = jwt.sign(
@@ -132,13 +132,13 @@ router.post("/login", (req, res) => {
                                     {
                                         expiresIn: "1h"
                                     }
-                                    );
-                                    
+                                );
+
                                 user['token'] = token;
                             }
-            
-                            return res.json({error: false, data: user});
-                        }else {
+
+                            return res.json({ error: false, data: user });
+                        } else {
                             return res.json({
                                 error: true,
                                 code: errorCodes.WRONG_EMAIL_OR_PASSWORD,
@@ -146,7 +146,7 @@ router.post("/login", (req, res) => {
                             });
                         }
                     });
-                }else {
+                } else {
                     return res.json({
                         error: true,
                         code: errorCodes.USER_REGISTERED_WITH_ANOTHER_PROVIDER,
@@ -202,7 +202,7 @@ router.post("/login/google", (req, res) => {
                             expiresIn: "1h"
                         }
                     );
-                        
+
                     user['token'] = token;
                     return res.json({ error: false, data: user });
                 } else {
@@ -244,7 +244,7 @@ router.post("/login/apple", (req, res) => {
                     code: errorCodes.USER_NOT_FOUND,
                     message: "The user with the given Apple ID was not found on the server.",
                 });
-            }else {
+            } else {
                 const user = rows[0];
 
                 const token = jwt.sign(
@@ -256,11 +256,11 @@ router.post("/login/apple", (req, res) => {
                     {
                         expiresIn: "1h"
                     }
-                    );
-                    
+                );
+
                 user['token'] = token;
 
-                return res.json({error: false, data: user});
+                return res.json({ error: false, data: user });
             }
         });
     });
@@ -295,13 +295,13 @@ router.post("/", (req, res) => {
                 const sql2 =
                     "INSERT INTO users (name, surname, email, password, hash) VALUES (?,?,?,?,?)";
 
-                bcrypt.hash(req.body.password, 10, function(err, hashedPassword) {
-                    if (err) return res.json({ error: true, message: err.message});
+                bcrypt.hash(req.body.password, 10, function (err, hashedPassword) {
+                    if (err) return res.json({ error: true, message: err.message });
 
                     const hashedEmail = crypto
-                    .createHash("md5")
-                    .update(req.body.email)
-                    .digest("hex");
+                        .createHash("md5")
+                        .update(req.body.email)
+                        .digest("hex");
 
                     conn.query(sql2, [req.body.name, req.body.surname, req.body.email, hashedPassword, hashedEmail], (error2, rows2) => {
                         conn.release();
@@ -370,7 +370,7 @@ router.post("/apple/create", (req, res) => {
 
     pool.getConnection(function (err, conn) {
         if (err) return res.json({ error: true, message: err.message });
-            conn.query(sql, [req.body.email], (error, rows) => {
+        conn.query(sql, [req.body.email], (error, rows) => {
             if (error) {
                 conn.release();
                 return res.json({ error: true, message: error.message });
@@ -399,9 +399,9 @@ router.post("/apple/create", (req, res) => {
                         );
 
                         sendWelcomeMail(req.body.name, req.body.email);
-            
-                        return res.json({ error: false, id: rows2["insertId"], token: token});
-                    }else {
+
+                        return res.json({ error: false, id: rows2["insertId"], token: token });
+                    } else {
                         return res.json({
                             error: true,
                             code: errorCodes.USER_CAN_NOT_BE_CREATED,
@@ -409,7 +409,7 @@ router.post("/apple/create", (req, res) => {
                         });
                     }
                 });
-            }else {
+            } else {
                 // The user was already exists with this email address.
                 return res.json({
                     error: true,
@@ -419,7 +419,7 @@ router.post("/apple/create", (req, res) => {
             }
         });
     });
-    
+
 });
 
 // Change user name.
@@ -461,7 +461,7 @@ router.put("/changeProfilePicture", async (req, res) => {
             if (error) return res.json({ error: true, message: error.message });
 
             if (!rows[0]) {
-                return res.json({error: true, message: 'The user with the given id was not found on the server.'});
+                return res.json({ error: true, message: 'The user with the given id was not found on the server.' });
             } else {
                 if (rows[0]['account_type'] === constants.ACCOUNT_DEFAULT && rows[0]['pp'] !== null && rows[0]['pp'] !== undefined) {
                     // There was a profile picture before.
@@ -472,35 +472,35 @@ router.put("/changeProfilePicture", async (req, res) => {
 
                     let image = rows[0]['pp'];
                     let imageUrl = image.split("anatomica-ec2cd.appspot.com/")[1];
-    
+
                     if (defaultBucket.file(imageUrl).exists()) {
                         async function deleteFile() {
                             await defaultBucket.file(imageUrl).delete();
                         }
                     }
                 }
-    
+
                 // Image processing part.
                 const imageBuffer = Buffer.from(req.body.image, "base64");
                 const byteArray = new Uint8Array(imageBuffer);
                 const fileURL = `user_profile_images/${new Date().getTime()}.jpg`;
                 const file = defaultBucket.file(fileURL);
-    
+
                 file.save(byteArray).then(async () => {
                     file.makePublic();
-    
+
                     const url = `https://storage.googleapis.com/anatomica-ec2cd.appspot.com/${fileURL}`;
-    
+
                     data = [url, req.body.id];
-    
+
                     sql = "UPDATE users SET pp = ? WHERE id = ?";
-    
+
                     pool.getConnection(function (err, conn) {
                         if (err) return res.json({ error: true, message: err.message });
                         conn.query(sql, data, (error, rows) => {
                             conn.release();
                             if (error) return res.json({ error: true, message: error.message });
-    
+
                             if (rows['affectedRows'] === 0) {
                                 return res.json({
                                     error: true,
@@ -554,24 +554,24 @@ router.post("/sendVerificationEmail", (req, res) => {
                     if (user['active'] === 0) {
                         // User hasn't activated his/her account yet.
                         const hash = crypto
-                        .createHash("md5")
-                        .update(req.body.email)
-                        .digest("hex");
-    
+                            .createHash("md5")
+                            .update(req.body.email)
+                            .digest("hex");
+
                         sendRegisterMail(rows[0]['name'], req.body.email, rows[0]['id'], hash);
-    
+
                         return res.json({
                             error: false,
                             data: "A verification email has been sent."
                         });
-                    }else {
+                    } else {
                         return res.json({
                             error: true,
                             code: errorCodes.ACCOUNT_ALREADY_ACTIVATED,
                             data: "The user with the given id already activated his/her account. No need to verify mail address."
                         });
                     }
-                }else {
+                } else {
                     return res.json({
                         error: true,
                         code: errorCodes.NO_NEED_TO_VERIFY,
@@ -602,10 +602,10 @@ router.get("/verify/:id/:hash", (req, res) => {
             } else {
                 let pagePath = path.join(__dirname, "../page_templates/verify_mail.html");
 
-                fs.readFile(pagePath, function(err, data) {
+                fs.readFile(pagePath, function (err, data) {
                     if (err) return res.json({ error: true, message: err.message });
 
-                    res.writeHead(200, {'Content-Type': 'text/html'});
+                    res.writeHead(200, { 'Content-Type': 'text/html' });
                     res.write(data);
                     return res.end();
                 });
@@ -641,47 +641,57 @@ router.post("/password/resetMail/", (req, res) => {
             } else {
                 const user = rows[0];
 
-                // Create a JWT for sending link to the user.
-                const token = jwt.sign(
-                    {
-                        id: user['id'],
-                        email: req.body.email
-                    },
-                    process.env.JWT_PRIVATE_KEY_RESET,
-                    {
-                        expiresIn: "1h"
-                    }
-                );
+                // Let's check whether or not the user authenticated with email and password.
 
-                // Hash this token in order to save it in the database.
-                bcrypt.hash(token, 10, function(err, hashedToken) {
-                    if (err) return res.json({ error: true, message: err.message});
-
-                    // We got the hashed token.
-                    // Let's save it to the database.
-                    const sql2 = "UPDATE users SET reset_token = ? WHERE id = ?";
-
-                    conn.query(sql2, [hashedToken, user['id']], (error2, rows2) => {
-                        if (error2) return res.json({ error: true, message: error2.message });
-
-                        if (rows2['affectedRows'] !== 0) {
-                            // Everything is awesome! Let's send the email.
-
-                            sendPasswordResetMail(user['id'], req.body.email, token);
-
-                            return res.json({
-                                error: false,
-                                message: 'The password reset mail has been successfully sent.'
-                            });
-                        }else {
-                            return res.json({
-                                error: true,
-                                code: errorCodes.PASSWORD_RESET_TOKEN_CANNOT_BE_CREATED,
-                                message: 'There was an error while trying to create the reset password token.'
-                            });
+                if (user['account_type'] === constants.ACCOUNT_DEFAULT) {
+                    // Create a JWT for sending link to the user.
+                    const token = jwt.sign(
+                        {
+                            id: user['id'],
+                            email: req.body.email
+                        },
+                        process.env.JWT_PRIVATE_KEY_RESET,
+                        {
+                            expiresIn: "1h"
                         }
+                    );
+
+                    // Hash this token in order to save it in the database.
+                    bcrypt.hash(token, 10, function (err, hashedToken) {
+                        if (err) return res.json({ error: true, message: err.message });
+
+                        // We got the hashed token.
+                        // Let's save it to the database.
+                        const sql2 = "UPDATE users SET reset_token = ? WHERE id = ?";
+
+                        conn.query(sql2, [hashedToken, user['id']], (error2, rows2) => {
+                            if (error2) return res.json({ error: true, message: error2.message });
+
+                            if (rows2['affectedRows'] !== 0) {
+                                // Everything is awesome! Let's send the email.
+
+                                sendPasswordResetMail(user['id'], req.body.email, token);
+
+                                return res.json({
+                                    error: false,
+                                    message: 'The password reset mail has been successfully sent.'
+                                });
+                            } else {
+                                return res.json({
+                                    error: true,
+                                    code: errorCodes.PASSWORD_RESET_TOKEN_CANNOT_BE_CREATED,
+                                    message: 'There was an error while trying to create the reset password token.'
+                                });
+                            }
+                        });
                     });
-                });
+                }else {
+                    return res.json({
+                        error: true,
+                        code: errorCodes.USER_REGISTERED_WITH_ANOTHER_PROVIDER,
+                        message: 'The user registered with another provider. (Google or Apple)'
+                    });
+                }
             }
         });
     });
@@ -700,50 +710,50 @@ router.get("/password/reset/:id/:token", (req, res) => {
             conn.query(sql, [req.params.id], (error, rows) => {
                 conn.release();
                 if (error) return res.json({ error: true, message: error.message });
-    
+
                 if (!rows[0]) {
-                    fs.readFile(path.join(__dirname, "../page_templates/expired_token.html"), function(err, data) {
+                    fs.readFile(path.join(__dirname, "../page_templates/expired_token.html"), function (err, data) {
                         if (err) return res.json({ error: true, message: err.message });
-            
-                        res.writeHead(200, {'Content-Type': 'text/html'});
+
+                        res.writeHead(200, { 'Content-Type': 'text/html' });
                         res.write(data);
                         return res.end();
                     });
-                }else {
+                } else {
                     const user = rows[0];
                     // Let's check if the reset_token is NULL.
-    
+
                     if (!user.reset_token) {
                         // Reset token is NULL.
-                        fs.readFile(path.join(__dirname, "../page_templates/expired_token.html"), function(err, data) {
+                        fs.readFile(path.join(__dirname, "../page_templates/expired_token.html"), function (err, data) {
                             if (err) return res.json({ error: true, message: err.message });
-                
-                            res.writeHead(200, {'Content-Type': 'text/html'});
+
+                            res.writeHead(200, { 'Content-Type': 'text/html' });
                             res.write(data);
                             return res.end();
                         });
-                    }else {
+                    } else {
                         // Let's compare the JWT and hashed token.
-                        bcrypt.compare(req.params.token, user.reset_token, function(err, result) {
-                            if (err) return res.json({ error: true, message: err.message})
-        
+                        bcrypt.compare(req.params.token, user.reset_token, function (err, result) {
+                            if (err) return res.json({ error: true, message: err.message })
+
                             if (result) {
                                 // The reset token is valid. Show the HTML.
                                 let pagePath = path.join(__dirname, "../page_templates/reset_password.html");
-    
-                                fs.readFile(pagePath, function(err, data) {
+
+                                fs.readFile(pagePath, function (err, data) {
                                     if (err) return res.json({ error: true, message: err.message });
-                
-                                    res.writeHead(200, {'Content-Type': 'text/html'});
+
+                                    res.writeHead(200, { 'Content-Type': 'text/html' });
                                     res.write(data);
                                     return res.end();
                                 });
-                            }else {
+                            } else {
                                 // Reset token is invalid or expired.
-                                fs.readFile(path.join(__dirname, "../page_templates/expired_token.html"), function(err, data) {
+                                fs.readFile(path.join(__dirname, "../page_templates/expired_token.html"), function (err, data) {
                                     if (err) return res.json({ error: true, message: err.message });
-                        
-                                    res.writeHead(200, {'Content-Type': 'text/html'});
+
+                                    res.writeHead(200, { 'Content-Type': 'text/html' });
                                     res.write(data);
                                     return res.end();
                                 });
@@ -754,14 +764,14 @@ router.get("/password/reset/:id/:token", (req, res) => {
             });
         });
     } catch (error) {
-        fs.readFile(path.join(__dirname, "../page_templates/expired_token.html"), function(err, data) {
+        fs.readFile(path.join(__dirname, "../page_templates/expired_token.html"), function (err, data) {
             if (err) return res.json({ error: true, message: err.message });
 
-            res.writeHead(200, {'Content-Type': 'text/html'});
+            res.writeHead(200, { 'Content-Type': 'text/html' });
             res.write(data);
             return res.end();
         });
-    }    
+    }
 });
 
 // Reset password.
@@ -793,7 +803,7 @@ router.put("/password/update", (req, res) => {
                     code: errorCodes.USER_NOT_FOUND,
                     message: "The user with the given information can not be found.",
                 });
-            }else {
+            } else {
                 const user = rows[0];
                 // Let's check if the reset_token is NULL.
 
@@ -804,16 +814,16 @@ router.put("/password/update", (req, res) => {
                         code: errorCodes.INVALID_RESET_TOKEN,
                         message: "Invalid or expired reset token.",
                     });
-                }else {
+                } else {
                     // Let's compare the JWT and hashed token.
-                    bcrypt.compare(req.body.token, user['reset_token'], function(err, result) {
-                        if (err) return res.json({ error: true, message: err.message})
-    
+                    bcrypt.compare(req.body.token, user['reset_token'], function (err, result) {
+                        if (err) return res.json({ error: true, message: err.message })
+
                         if (result) {
                             // The reset token is valid. Show the HTML.
 
-                            bcrypt.hash(req.body.password, 10, function(err, hashedPassword) {
-                                if (err) return res.json({ error: true, message: err.message});
+                            bcrypt.hash(req.body.password, 10, function (err, hashedPassword) {
+                                if (err) return res.json({ error: true, message: err.message });
 
                                 if (user['password'] === hashedPassword) {
                                     // New password is same as old password.
@@ -822,20 +832,20 @@ router.put("/password/update", (req, res) => {
                                         code: errorCodes.NEW_PASSWORD_CANNOT_BE_SAME_AS_OLD,
                                         message: 'Your new password can not be the same as your old one.'
                                     })
-                                }else {
+                                } else {
                                     const sql2 = "UPDATE users SET password = ?, reset_token = ? WHERE id = ?";
 
                                     conn.query(sql2, [hashedPassword, null, req.body.id], (error2, rows2) => {
                                         conn.release();
                                         if (error2) return res.json({ error: true, message: error2.message });
-    
+
                                         if (rows2['affectedRows'] !== 0) {
                                             // Password changed successfully.
                                             return res.json({
                                                 error: false,
                                                 message: "Your password was changed successfully.",
                                             });
-                                        }else {
+                                        } else {
                                             return res.json({
                                                 error: true,
                                                 code: errorCodes.PASSWORD_CANNOT_BE_CHANGED,
@@ -845,7 +855,7 @@ router.put("/password/update", (req, res) => {
                                     });
                                 }
                             });
-                        }else {
+                        } else {
                             // Reset token is invalid or expired.
                             return res.json({
                                 error: true,
@@ -857,7 +867,7 @@ router.put("/password/update", (req, res) => {
                 }
             }
         });
-    });    
+    });
 });
 
 // ***** Helper Functions *****
@@ -877,14 +887,14 @@ async function sendRegisterMail(name, email, id, hash) {
         // Send the mail.
         const transport = nodemailer.createTransport(
             smtp({
-              host: process.env.MAILJET_SMTP_SERVER,
-              port: 2525,
-              auth: {
-                user: process.env.MAILJET_API_KEY,
-                pass: process.env.MAILJET_SECRET_KEY
-              }
+                host: process.env.MAILJET_SMTP_SERVER,
+                port: 2525,
+                auth: {
+                    user: process.env.MAILJET_API_KEY,
+                    pass: process.env.MAILJET_SECRET_KEY
+                }
             })
-          );
+        );
 
         const json = await transport.sendMail({
             from: "Anatomica <" + process.env.MAIL_USER + ">",
@@ -910,14 +920,14 @@ async function sendWelcomeMail(name, email) {
         // Send the mail.
         const transport = nodemailer.createTransport(
             smtp({
-              host: process.env.MAILJET_SMTP_SERVER,
-              port: 2525,
-              auth: {
-                user: process.env.MAILJET_API_KEY,
-                pass: process.env.MAILJET_SECRET_KEY
-              }
+                host: process.env.MAILJET_SMTP_SERVER,
+                port: 2525,
+                auth: {
+                    user: process.env.MAILJET_API_KEY,
+                    pass: process.env.MAILJET_SECRET_KEY
+                }
             })
-          );
+        );
 
         const json = await transport.sendMail({
             from: "Anatomica <" + process.env.MAIL_USER + ">",
@@ -944,14 +954,14 @@ async function sendPasswordResetMail(id, email, token) {
         // Send the mail.
         const transport = nodemailer.createTransport(
             smtp({
-              host: process.env.MAILJET_SMTP_SERVER,
-              port: 2525,
-              auth: {
-                user: process.env.MAILJET_API_KEY,
-                pass: process.env.MAILJET_SECRET_KEY
-              }
+                host: process.env.MAILJET_SMTP_SERVER,
+                port: 2525,
+                auth: {
+                    user: process.env.MAILJET_API_KEY,
+                    pass: process.env.MAILJET_SECRET_KEY
+                }
             })
-          );
+        );
 
         const json = await transport.sendMail({
             from: "Anatomica <" + process.env.MAIL_USER + ">",
@@ -986,11 +996,11 @@ function createGoogleUser(name, surname, email, pp, google_id, res) {
                         expiresIn: "1h"
                     }
                 );
-    
+
                 sendWelcomeMail(name, email);
 
-                return res.json({ error: false, id: rows["insertId"], token: token});
-            }else {
+                return res.json({ error: false, id: rows["insertId"], token: token });
+            } else {
                 return res.json({
                     error: true,
                     code: errorCodes.USER_CAN_NOT_BE_CREATED,
