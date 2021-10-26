@@ -6,10 +6,12 @@ const {Storage} = require('@google-cloud/storage');
 const path = require('path');
 
 const checkAuth = require('../middleware/check-auth');
+const checkPrivilege = require('../middleware/check-privilege');
 
 const pool = require('../database');
 const constants = require('./constants');
 const errorCodes = require('./errors');
+const privileges = require('../privileges');
 
 // ***** Google Cloud Storage *****
 const gcs = new Storage({
@@ -117,7 +119,7 @@ router.post('/withCategory', checkAuth, async (req, res) => {
 });
 
 // Insert a new Image Question record.
-router.post('/create', checkAuth, async (req, res) => {
+router.post('/create', checkAuth, checkPrivilege(privileges['anatomica.add.question']), async (req, res) => {
     const schema = Joi.object({
         category: Joi.number().integer().required(),
         subcategory: Joi.number().integer().required(),
@@ -175,7 +177,7 @@ router.post('/create', checkAuth, async (req, res) => {
 });
 
 // Update Image Question record with given id.
-router.put('/', checkAuth, async (req, res) => {
+router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question']), async (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required(),
         category: Joi.number().integer().required(),
@@ -308,7 +310,7 @@ router.put('/', checkAuth, async (req, res) => {
 });
 
 // Delete Image Question record with given id.
-router.delete('/', checkAuth, async (req, res) => {
+router.delete('/', checkAuth, checkPrivilege(privileges['anatomica.delete.question']), async (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required()
     });

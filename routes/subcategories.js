@@ -4,10 +4,12 @@ const router = express.Router();
 const Joi = require('joi');
 
 const checkAuth = require('../middleware/check-auth');
+const checkPrivilege = require('../middleware/check-privilege');
 
 const pool = require('../database');
 const constants = require('./constants');
 const errorCodes = require('./errors');
+const privileges = require('../privileges');
 
 // Fetching all the subcategories.
 router.get('/', checkAuth, (req, res) => {
@@ -47,7 +49,7 @@ router.post('/withCategory', checkAuth, (req, res) => {
 });
 
 // Create a new subcategory.
-router.post('/', checkAuth, (req, res) => {
+router.post('/', checkAuth, checkPrivilege(privileges['anatomica.add.subcategory']), (req, res) => {
     const schema = Joi.object({
         name: Joi.string().required(),
         category: Joi.number().integer().required()
@@ -78,7 +80,7 @@ router.post('/', checkAuth, (req, res) => {
 });
 
 // Update a subcategory.
-router.put('/', checkAuth, (req, res) => {
+router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.subcategory']), (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required(),
         name: Joi.string().required(),
@@ -115,7 +117,7 @@ router.put('/', checkAuth, (req, res) => {
 });
 
 // Delete a category.
-router.delete('/', checkAuth, async (req, res) => {
+router.delete('/', checkAuth, checkPrivilege(privileges['anatomica.delete.subcategory']), async (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required()
     });

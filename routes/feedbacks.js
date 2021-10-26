@@ -8,6 +8,7 @@ const checkAuth = require('../middleware/check-auth');
 const pool = require('../database');
 const constants = require('./constants');
 const errorCodes = require('./errors');
+const privileges = require('../privileges');
 
 // Fetching all the feedbacks.
 router.get('/', checkAuth, (req, res) => {

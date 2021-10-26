@@ -6,10 +6,12 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
 const checkAuth = require('../middleware/check-auth');
+const checkPrivilege = require('../middleware/check-privilege');
 
 const pool = require('../database');
 const constants = require('./constants');
 const errorCodes = require('./errors');
+const privileges = require('../privileges');
 
 // Login user with credentials.
 router.post("/login", (req, res) => {
@@ -62,6 +64,24 @@ router.post("/login", (req, res) => {
             }
         });
     });
+});
+
+// Get all admins.
+router.post("/users", checkPrivilege(privileges['anatomica.list.users']), (req, res) => {
+    const sql = "SELECT * FROM admin_accounts";
+
+    pool.getConnection(function (err, conn){
+        if (err) return res.json({ error: true, message: err.message });
+        conn.query(sql, (error, rows) => {
+            conn.release();
+            if (error) return res.json({ error: true, message: error.message });
+
+            return res.json({
+                error: false,
+                data: rows
+            })
+        });
+    })
 });
 
 // Get info for dashboard.

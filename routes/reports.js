@@ -4,10 +4,12 @@ const router = express.Router();
 const Joi = require('joi');
 
 const checkAuth = require('../middleware/check-auth');
+const checkPrivilege = require('../middleware/check-privilege');
 
 const pool = require('../database');
 const constants = require('./constants');
 const errorCodes = require('./errors');
+const privileges = require('../privileges');
 
 // Fetching all the reports.
 router.get('/', checkAuth, (req, res) => {
@@ -105,7 +107,7 @@ router.put('/', checkAuth, (req, res) => {
 })
 
 // Delete a report.
-router.delete('/', checkAuth, async (req, res) => {
+router.delete('/', checkAuth, checkPrivilege(privileges['anatomica.delete.report']), async (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required()
     });
@@ -130,6 +132,5 @@ router.delete('/', checkAuth, async (req, res) => {
         });
     });
 });
-
 
 module.exports = router
