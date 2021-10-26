@@ -21,6 +21,7 @@ module.exports = permission => {
                         message: 'Bu işlem için yetkiniz yok.'
                     });
                 } else {
+                    delete req.body.user;
                     next();
                 }
             });
