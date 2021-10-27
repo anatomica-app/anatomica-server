@@ -14,8 +14,13 @@ const privileges = require('../privileges');
 // Fetching all the Classic Questions
 router.post('/', checkAuth, (req, res) => {
     const schema = Joi.object({
-        full: Joi.boolean().required()
-    })
+        full: Joi.boolean().required(),
+        lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
+    });
+
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
@@ -24,14 +29,14 @@ router.post('/', checkAuth, (req, res) => {
 
     if (req.body.full) {
         // We need to inner join the foreign keys.
-        sql = "SELECT quiz_questions_classic.id, question, quiz_category.name AS category, quiz_subcategory.name AS subcategory, answer, a, b, c, d, quiz_questions_classic.date_added FROM quiz_questions_classic INNER JOIN quiz_category on quiz_questions_classic.category = quiz_category.id INNER JOIN quiz_subcategory ON quiz_questions_classic.subcategory = quiz_subcategory.id";
+        sql = "SELECT quiz_questions_classic.id, question, quiz_category.name AS category, quiz_subcategory.name AS subcategory, answer, a, b, c, d, quiz_questions_classic.date_added FROM quiz_questions_classic INNER JOIN quiz_category on quiz_questions_classic.category = quiz_category.id INNER JOIN quiz_subcategory ON quiz_questions_classic.subcategory = quiz_subcategory.id WHERE lang = ?";
     }else {
-        sql = "SELECT * FROM quiz_questions_classic";
+        sql = "SELECT * FROM quiz_questions_classic WHERE lang = ?";
     }
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
-        conn.query(sql, (error, rows) => {
+        conn.query(sql, [lang], (error, rows) => {
             conn.release();
             if (error) return res.json({error: true, message: error.message});;
 
@@ -42,18 +47,23 @@ router.post('/', checkAuth, (req, res) => {
 
 // Fetching the Classic Question From Id.
 router.post('/withId', checkAuth, async (req, res) => {
-    const sql = "SELECT * FROM quiz_questions_classic WHERE id = ?";
+    const sql = "SELECT * FROM quiz_questions_classic WHERE id = ? AND lang = ?";
 
     const schema = Joi.object({
-        id: Joi.number().integer().required()
-    })
+        id: Joi.number().integer().required(),
+        lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
+    });
+
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
-        conn.query(sql, [req.body.id], (error, rows) => {
+        conn.query(sql, [req.body.id, lang], (error, rows) => {
             conn.release();
             if (error) return res.json({error: true, message: error.message});
 
@@ -75,7 +85,12 @@ router.post('/withCategory', checkAuth, async (req, res) => {
         category: Joi.number().integer().required(),
         subcategories: Joi.array().required(),
         maxQuestionCount: Joi.number().integer().min(1).required(),
-    })
+        lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
+    });
+
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
@@ -95,11 +110,11 @@ router.post('/withCategory', checkAuth, async (req, res) => {
         }
     }
 
-    const sql = `SELECT * FROM quiz_questions_classic WHERE category = ? AND ${subcategoryQuery} ORDER BY RAND() LIMIT ?`;
+    const sql = `SELECT * FROM quiz_questions_classic WHERE lang = ? AND category = ? AND (${subcategoryQuery}) ORDER BY RAND() LIMIT ?`;
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
-        conn.query(sql, [req.body.category, req.body.maxQuestionCount], (error, rows) => {
+        conn.query(sql, [lang, req.body.category, req.body.maxQuestionCount], (error, rows) => {
             conn.release();
             if (error) return res.json({error: true, message: error.message});
 
@@ -111,6 +126,7 @@ router.post('/withCategory', checkAuth, async (req, res) => {
 // Insert a new Classic Question record.
 router.post('/create', checkAuth, checkPrivilege(privileges['anatomica.add.question']), async (req, res) => {
     const schema = Joi.object({
+        lang: Joi.number().integer(),
         question: Joi.string().required(),
         category: Joi.number().integer().required(),
         subcategory: Joi.number().integer().required(),
@@ -121,11 +137,16 @@ router.post('/create', checkAuth, checkPrivilege(privileges['anatomica.add.quest
         d: Joi.string().required()
     });
 
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
+
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
-    const sql = "INSERT INTO quiz_questions_classic (question, category, subcategory, answer, a, b, c, d) VALUES (?,?,?,?,?,?,?,?)";
+    const sql = "INSERT INTO quiz_questions_classic (lang, question, category, subcategory, answer, a, b, c, d) VALUES (?,?,?,?,?,?,?,?,?)";
     const data = [
+        lang,
         req.body.question,
         req.body.category,
         req.body.subcategory,
@@ -159,6 +180,7 @@ router.post('/create', checkAuth, checkPrivilege(privileges['anatomica.add.quest
 router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question']), async (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required(),
+        lang: Joi.number().integer(),
         question: Joi.string().required(),
         category: Joi.number().integer().required(),
         subcategory: Joi.number().integer().required(),
@@ -169,39 +191,81 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question'
         d: Joi.string().required()
     });
 
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
+
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
-    const sql = "UPDATE quiz_questions_classic SET question = ?, category = ?, subcategory = ?, answer = ?, a = ?, b = ?, c = ?, d = ? WHERE id = ?";
-    const data = [
-        req.body.question,
-        req.body.category,
-        req.body.subcategory,
-        req.body.answer,
-        req.body.a,
-        req.body.b,
-        req.body.c,
-        req.body.d,
-        req.body.id
-    ];
-
-    pool.getConnection(function(err, conn){
+    const sql = "SELECT * FROM quiz_questions_classic WHERE id = ? AND lang = ?";
+    pool.getConnection(function(err, conn) {
         if (err) return res.json({error: true, message: err.message});
-        conn.query(sql, data, (error, rows) => {
-            conn.release();
-            if (error) return res.json({error: true, message: error.message});;
+        conn.query(sql, [req.body.id, lang], (error, rows) => {
+            if (!rows[0]) {
+                // The question with the given lang and id not found.
+                // We shall create a new question with this language configuration.
+                const sql2 = "INSERT INTO quiz_questions_classic (id, lang, question, category, subcategory, answer, a, b, c, d) VALUES (?,?,?,?,?,?,?,?,?,?)";
+                const data = [
+                    req.body.id,
+                    lang,
+                    req.body.question,
+                    req.body.category,
+                    req.body.subcategory,
+                    req.body.answer,
+                    req.body.a,
+                    req.body.b,
+                    req.body.c,
+                    req.body.d
+                ];
 
-            if (rows['affectedRows'] === 0){
-                return res.json({
-                    error: true,
-                    code: errorCodes.QUESTION_NOT_FOUND,
-                    message: 'The question with the given id was not found.'
+                conn.query(sql2, data, (error2, rows2) => {
+                    conn.release();
+                    if (error2) return res.json({error: true, message: error2.message});
+        
+                    if (rows2['insertId'] === 0){
+                        return res.json({
+                            error: true,
+                            code: errorCodes.QUESTION_CAN_NOT_BE_CREATED,
+                            message: 'The data can not be inserted.'
+                        });
+                    }else {
+                        return res.json({error: false, data: rows2['insertId']});
+                    }
                 });
             }else {
-                return res.json({error: false, data: data});
+                // A question with the given id and language found. Update it.
+                const sql2 = "UPDATE quiz_questions_classic SET lang = ?, question = ?, category = ?, subcategory = ?, answer = ?, a = ?, b = ?, c = ?, d = ? WHERE id = ?";
+                const data = [
+                    lang,
+                    req.body.question,
+                    req.body.category,
+                    req.body.subcategory,
+                    req.body.answer,
+                    req.body.a,
+                    req.body.b,
+                    req.body.c,
+                    req.body.d,
+                    req.body.id
+                ];
+
+                conn.query(sql2, data, (error2, rows2) => {
+                    conn.release();
+                    if (error2) return res.json({error: true, message: error2.message});;
+        
+                    if (rows2['affectedRows'] === 0){
+                        return res.json({
+                            error: true,
+                            code: errorCodes.QUESTION_NOT_FOUND,
+                            message: 'The question with the given id was not found.'
+                        });
+                    }else {
+                        return res.json({error: false, data: data});
+                    }
+                });
             }
         });
-    });
+    })
 });
 
 // Delete Classic Question record with given id.

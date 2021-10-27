@@ -23,11 +23,37 @@ const defaultBucket = gcs.bucket('anatomica-ec2cd.appspot.com');
 
 // Fetching all the categories.
 router.get('/', checkAuth, (req, res) => {
-    const sql = "SELECT * FROM quiz_category";
+    const sql = "SELECT * FROM quiz_category WHERE lang = 1";
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, (error, rows) => {
+            conn.release();
+            if (error) return res.json({error: true, message: error.message});;
+
+            res.json({error: false, data: rows});
+        });
+    });
+});
+
+// Fetching all the categories with language.
+router.post('/', checkAuth, (req, res) => {
+    const schema = Joi.object({
+        lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
+    });
+
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
+
+    const result = schema.validate(req.body);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
+
+    const sql = "SELECT * FROM quiz_category WHERE lang = ?";
+
+    pool.getConnection(function(err, conn){
+        if (err) return res.json({error: true, message: err.message});
+        conn.query(sql, [lang], (error, rows) => {
             conn.release();
             if (error) return res.json({error: true, message: error.message});;
 

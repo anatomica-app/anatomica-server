@@ -29,17 +29,22 @@ router.get('/', checkAuth, (req, res) => {
 // Fetching all the subcategories with the given category.
 router.post('/withCategory', checkAuth, (req, res) => {
     const schema = Joi.object({
-        id: Joi.number().integer().required()
-    })
+        id: Joi.number().integer().required(),
+        lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
+    });
+
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
-    const sql = "SELECT * FROM quiz_subcategory WHERE category = ?";
+    const sql = "SELECT * FROM quiz_subcategory WHERE category = ? AND lang = ?";
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
-        conn.query(sql, [req.body.id],(error, rows) => {
+        conn.query(sql, [req.body.id, lang],(error, rows) => {
             conn.release();
             if (error) return res.json({error: true, message: error.message});
 

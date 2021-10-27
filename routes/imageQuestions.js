@@ -24,8 +24,13 @@ const defaultBucket = gcs.bucket('anatomica-ec2cd.appspot.com');
 // Fetching all the Image Questions
 router.post('/', checkAuth, (req, res) => {
     const schema = Joi.object({
-        full: Joi.boolean().required()
-    })
+        full: Joi.boolean().required(),
+        lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
+    });
+
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
@@ -34,14 +39,14 @@ router.post('/', checkAuth, (req, res) => {
 
     if (req.body.full) {
         // We need to inner join the foreign keys.
-        sql = "SELECT quiz_questions_image.id, quiz_questions_image.image, quiz_category.name AS category, quiz_subcategory.name AS subcategory, answer, a, b, c, d, quiz_questions_image.date_added FROM quiz_questions_image INNER JOIN quiz_category on quiz_questions_image.category = quiz_category.id INNER JOIN quiz_subcategory ON quiz_questions_image.subcategory = quiz_subcategory.id";
+        sql = "SELECT quiz_questions_image.id, quiz_questions_image.image, quiz_category.name AS category, quiz_subcategory.name AS subcategory, answer, a, b, c, d, quiz_questions_image.date_added FROM quiz_questions_image INNER JOIN quiz_category on quiz_questions_image.category = quiz_category.id INNER JOIN quiz_subcategory ON quiz_questions_image.subcategory = quiz_subcategory.id WHERE lang = ?";
     }else {
-        sql = "SELECT * FROM quiz_questions_image";
+        sql = "SELECT * FROM quiz_questions_image WHERE lang = ?";
     }
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
-        conn.query(sql, (error, rows) => {
+        conn.query(sql, [lang], (error, rows) => {
             conn.release();
             if (error) return res.json({error: true, message: error.message});;
 
@@ -52,18 +57,23 @@ router.post('/', checkAuth, (req, res) => {
 
 // Fetching the Image Question From Id.
 router.post('/withId', checkAuth, async (req, res) => {
-    const sql = "SELECT * FROM quiz_questions_image WHERE id = ?";
+    const sql = "SELECT * FROM quiz_questions_image WHERE id = ? AND lang = ?";
 
     const schema = Joi.object({
-        id: Joi.number().integer().required()
-    })
+        id: Joi.number().integer().required(),
+        lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
+    });
+
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
-        conn.query(sql, [req.body.id], (error, rows) => {
+        conn.query(sql, [req.body.id, lang], (error, rows) => {
             conn.release();
             if (error) return res.json({error: true, message: error.message});;
 
@@ -85,7 +95,12 @@ router.post('/withCategory', checkAuth, async (req, res) => {
         category: Joi.number().integer().required(),
         subcategories: Joi.array().required(),
         maxQuestionCount: Joi.number().integer().min(1).required(),
-    })
+        lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
+    });
+
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
@@ -105,11 +120,11 @@ router.post('/withCategory', checkAuth, async (req, res) => {
         }
     }
 
-    const sql = `SELECT * FROM quiz_questions_image WHERE category = ? AND ${subcategoryQuery} ORDER BY RAND() LIMIT ?`;
+    const sql = `SELECT * FROM quiz_questions_image WHERE lang = ? AND category = ? AND (${subcategoryQuery}) ORDER BY RAND() LIMIT ?`;
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
-        conn.query(sql, [req.body.category, req.body.maxQuestionCount], (error, rows) => {
+        conn.query(sql, [lang, req.body.category, req.body.maxQuestionCount], (error, rows) => {
             conn.release();
             if (error) return res.json({error: true, message: error.message});
 
