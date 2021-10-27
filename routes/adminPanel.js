@@ -84,6 +84,51 @@ router.post("/users", checkPrivilege(privileges['anatomica.list.users']), (req, 
     })
 });
 
+// Create an admin account.
+router.post("/users/create", checkPrivilege(privileges['anatomica.add.admin']), (req, res) => {
+    const schema = Joi.object({
+        name: Joi.string().min(3).max(64).required(),
+        username: Joi.string().max(128).required(),
+        password: Joi.string().min(6).required(),
+        perms: Joi.array()
+    });
+
+    const result = schema.validate(req.body);
+    if (result.error)
+        return res.json({ error: true, message: result.error.details[0].message });
+
+    const hashedPassword = crypto
+        .createHash("md5")
+        .update(req.body.password)
+        .digest("hex");
+
+    const sql = "INSERT INTO admin_accounts (name, username, password, active) VALUES (?,?,?,1)";
+    pool.getConnection(function(err, conn) {
+        if (err) return res.json({error: true, message: err.message});
+
+        conn.query(sql, [req.body.name, req.body.username, hashedPassword], (error, rows) => {
+            if (error) return res.json({error: true, message: error.message});
+
+            if (rows['insertId'] !== 0) {
+                if (req.body.perms) {
+                    let array = req.body.perms;
+                    for (var i = 0; i < array.length; i++) {
+                        const sql2 = "INSERT INTO admin_privileges (user, privilege) VALUES (?,?)";
+                        conn.query(sql2, [rows['insertId'], array[i]]);
+                    }
+                }
+                return res.json({error: false, message: 'The admin account has been successfully created.'});
+            }else {
+                return res.json({
+                    error: true,
+                    code: errorCodes.ADMIN_CANNOT_BE_CREATED,
+                    message: 'The admin account can not be created.'
+                })
+            }
+        });
+    });
+});
+
 // Get info for dashboard.
 router.get("/dashboard", checkAuth, (req, res) => {
     const sql = "SELECT (SELECT COUNT(1) FROM quiz_questions_classic) + (SELECT COUNT(1) FROM quiz_questions_image) AS questions, (SELECT COUNT(1) FROM quiz_category) AS category, (SELECT COUNT(1) FROM quiz_subcategory) AS subcategory, (SELECT COUNT(1) FROM users) AS users";

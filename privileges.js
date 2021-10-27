@@ -21,4 +21,5 @@ module.exports = Object.freeze({
     'anatomica.list.reports': 14,
     'anatomica.delete.report': 15,
     'anatomica.send.notification': 16,
+    'anatomica.add.admin': 17
 });
