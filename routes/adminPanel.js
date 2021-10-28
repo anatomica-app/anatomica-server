@@ -84,6 +84,39 @@ router.post("/users", checkPrivilege(privileges['anatomica.list.users']), (req, 
     })
 });
 
+// Get users privileges.
+router.post("/users/privilege", checkAuth, (req, res) => {
+    const schema = Joi.object({
+        id: Joi.number().integer().required()
+    });
+
+    const result = schema.validate(req.body);
+    if (result.error)
+        return res.json({ error: true, message: result.error.details[0].message });
+
+    const sql = "SELECT privileges.description FROM admin_privileges INNER JOIN admin_accounts ON admin_privileges.user = admin_accounts.id INNER JOIN privileges ON admin_privileges.privilege = privileges.id WHERE admin_accounts.id = ?";
+
+    pool.getConnection(function (err, conn){
+        if (err) return res.json({ error: true, message: err.message });
+        conn.query(sql, [req.body.id], (error, rows) => {
+            conn.release();
+            if (error) return res.json({ error: true, message: error.message });
+
+            if (!rows[0]) {
+                return res.json({
+                    error: true,
+                    message: 'There is no record'
+                });
+            }else {
+                return res.json({
+                    error: false,
+                    data: rows
+                });
+            }
+        });
+    })
+});
+
 // Create an admin account.
 router.post("/users/create", checkPrivilege(privileges['anatomica.add.admin']), (req, res) => {
     const schema = Joi.object({
