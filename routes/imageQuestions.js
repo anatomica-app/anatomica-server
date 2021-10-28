@@ -39,20 +39,30 @@ router.post('/', checkAuth, (req, res) => {
 
     if (req.body.full) {
         // We need to inner join the foreign keys.
-        sql = "SELECT quiz_questions_image.id, quiz_questions_image.image, quiz_category.name AS category, quiz_subcategory.name AS subcategory, answer, a, b, c, d, quiz_questions_image.date_added FROM quiz_questions_image INNER JOIN quiz_category on quiz_questions_image.category = quiz_category.id INNER JOIN quiz_subcategory ON quiz_questions_image.subcategory = quiz_subcategory.id WHERE lang = ?";
+        sql = "SELECT quiz_questions_image.id, quiz_questions_image.image, quiz_category.name AS category, quiz_subcategory.name AS subcategory, answer, a, b, c, d, quiz_questions_image.date_added FROM quiz_questions_image INNER JOIN quiz_category ON quiz_questions_image.category = quiz_category.id AND quiz_category.lang = 1 INNER JOIN quiz_subcategory ON quiz_questions_image.subcategory = quiz_subcategory.id AND quiz_subcategory.lang = 1 WHERE quiz_questions_image.lang = 1";
+
+        pool.getConnection(function(err, conn){
+            if (err) return res.json({error: true, message: err.message});
+            conn.query(sql, [lang, lang, lang], (error, rows) => {
+                conn.release();
+                if (error) return res.json({error: true, message: error.message});;
+    
+                res.json({error: false, data: rows});
+            });
+        });
     }else {
         sql = "SELECT * FROM quiz_questions_image WHERE lang = ?";
-    }
 
-    pool.getConnection(function(err, conn){
-        if (err) return res.json({error: true, message: err.message});
-        conn.query(sql, [lang], (error, rows) => {
-            conn.release();
-            if (error) return res.json({error: true, message: error.message});;
-
-            res.json({error: false, data: rows});
+        pool.getConnection(function(err, conn){
+            if (err) return res.json({error: true, message: err.message});
+            conn.query(sql, [lang], (error, rows) => {
+                conn.release();
+                if (error) return res.json({error: true, message: error.message});;
+    
+                res.json({error: false, data: rows});
+            });
         });
-    });
+    }
 });
 
 // Fetching the Image Question From Id.

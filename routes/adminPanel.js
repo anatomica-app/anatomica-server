@@ -131,7 +131,7 @@ router.post("/users/create", checkPrivilege(privileges['anatomica.add.admin']), 
 
 // Get info for dashboard.
 router.get("/dashboard", checkAuth, (req, res) => {
-    const sql = "SELECT (SELECT COUNT(1) FROM quiz_questions_classic) + (SELECT COUNT(1) FROM quiz_questions_image) AS questions, (SELECT COUNT(1) FROM quiz_category) AS category, (SELECT COUNT(1) FROM quiz_subcategory) AS subcategory, (SELECT COUNT(1) FROM users) AS users";
+    const sql = "SELECT (SELECT COUNT(1) FROM quiz_questions_classic WHERE lang = 1) + (SELECT COUNT(1) FROM quiz_questions_image WHERE lang = 1) AS questions, (SELECT COUNT(1) FROM quiz_category WHERE lang = 1) AS category, (SELECT COUNT(1) FROM quiz_subcategory WHERE lang = 1) AS subcategory, (SELECT COUNT(1) FROM users) AS users";
 
     pool.getConnection(function (err, conn) {
         if (err) return res.json({ error: true, message: err.message });
