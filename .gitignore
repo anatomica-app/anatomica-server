@@ -5,3 +5,4 @@ app.yaml
 anatomica-ec2cd-a8621075b43a.json
 deploy.sh
 deploy.bat
+.vscode/launch.json
