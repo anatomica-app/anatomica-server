@@ -212,11 +212,16 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question'
     pool.getConnection(function(err, conn) {
         if (err) return res.json({error: true, message: err.message});
         conn.query(sql, [req.body.id, lang], (error, rows) => {
+            if (error) return res.json({error: true, message: error.message});
+
+            let sql2 = "";
+            let data = [];
+
             if (!rows[0]) {
                 // The question with the given lang and id not found.
                 // We shall create a new question with this language configuration.
-                const sql2 = "INSERT INTO quiz_questions_classic (id, lang, question, category, subcategory, answer, a, b, c, d) VALUES (?,?,?,?,?,?,?,?,?,?)";
-                const data = [
+                sql2 = "INSERT INTO quiz_questions_classic (id, lang, question, category, subcategory, answer, a, b, c, d) VALUES (?,?,?,?,?,?,?,?,?,?)";
+                data = [
                     req.body.id,
                     lang,
                     req.body.question,
@@ -228,26 +233,10 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question'
                     req.body.c,
                     req.body.d
                 ];
-
-                conn.query(sql2, data, (error2, rows2) => {
-                    conn.release();
-                    if (error2) return res.json({error: true, message: error2.message});
-        
-                    if (rows2['insertId'] === 0){
-                        return res.json({
-                            error: true,
-                            code: errorCodes.QUESTION_CAN_NOT_BE_CREATED,
-                            message: 'The data can not be inserted.'
-                        });
-                    }else {
-                        return res.json({error: false, data: rows2['insertId']});
-                    }
-                });
             }else {
                 // A question with the given id and language found. Update it.
-                const sql2 = "UPDATE quiz_questions_classic SET lang = ?, question = ?, category = ?, subcategory = ?, answer = ?, a = ?, b = ?, c = ?, d = ? WHERE id = ?";
-                const data = [
-                    lang,
+                sql2 = "UPDATE quiz_questions_classic SET question = ?, category = ?, subcategory = ?, answer = ?, a = ?, b = ?, c = ?, d= ? WHERE id = ? AND lang = ?";
+                data = [
                     req.body.question,
                     req.body.category,
                     req.body.subcategory,
@@ -256,24 +245,25 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question'
                     req.body.b,
                     req.body.c,
                     req.body.d,
-                    req.body.id
+                    req.body.id,
+                    lang
                 ];
-
-                conn.query(sql2, data, (error2, rows2) => {
-                    conn.release();
-                    if (error2) return res.json({error: true, message: error2.message});;
-        
-                    if (rows2['affectedRows'] === 0){
-                        return res.json({
-                            error: true,
-                            code: errorCodes.QUESTION_NOT_FOUND,
-                            message: 'The question with the given id was not found.'
-                        });
-                    }else {
-                        return res.json({error: false, data: data});
-                    }
-                });
             }
+
+            conn.query(sql2, data, (error2, rows2) => {
+                conn.release();
+                if (error2) return res.json({error: true, message: error2.message});;
+    
+                if (rows2['affectedRows'] === 0){
+                    return res.json({
+                        error: true,
+                        code: errorCodes.QUESTION_CANNOT_BE_INSERTED_OR_UPDATED,
+                        message: 'The question neither could be inserted nor could be updated.'
+                    });
+                }else {
+                    return res.json({error: false, data: data});
+                }
+            });
         });
     })
 });
