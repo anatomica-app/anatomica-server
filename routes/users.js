@@ -11,9 +11,12 @@ const fs = require("fs");
 const path = require("path");
 const jwt = require("jsonwebtoken");
 
+const checkPrivilege = require('../middleware/check-privilege');
+
 const pool = require('../database');
 const constants = require('./constants');
 const errorCodes = require('./errors');
+const privileges = require('../privileges');
 
 // ***** Google Cloud Storage *****
 const gcs = new Storage({
@@ -24,7 +27,7 @@ const gcs = new Storage({
 const defaultBucket = gcs.bucket('anatomica-ec2cd.appspot.com');
 
 // Fetch all users.
-router.get("/", (req, res) => {
+router.post("/", checkPrivilege(privileges['anatomica.list.users']), (req, res) => {
     const sql = "SELECT id, name, surname, email, password, UNIX_TIMESTAMP(date_joined) as date_joined, UNIX_TIMESTAMP(name_last_changed) as name_last_changed, pp, active, hash, account_type, google_id, apple_id FROM users";
 
     pool.getConnection(function (err, conn) {

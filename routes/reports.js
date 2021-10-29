@@ -12,7 +12,7 @@ const errorCodes = require('./errors');
 const privileges = require('../privileges');
 
 // Fetching all the reports.
-router.get('/', checkAuth, (req, res) => {
+router.get('/', checkAuth, checkPrivilege(privileges['anatomica.list.reports']), (req, res) => {
     const sql = "SELECT * FROM quiz_reports";
 
     pool.getConnection(function(err, conn){
