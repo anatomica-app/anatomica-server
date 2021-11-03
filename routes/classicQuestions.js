@@ -233,6 +233,24 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question'
                     req.body.c,
                     req.body.d
                 ];
+
+                console.log('Inserting classic question...');
+                console.log('Request id: ' + req.body.id + ', lang: ' + lang + ', question: ' + req.body.question);
+
+                conn.query(sql2, data, (error2, rows2) => {
+                    conn.release();
+                    if (error2) return res.json({error: true, message: error2.message});;
+        
+                    if (rows2['affectedRows'] === 0){
+                        return res.json({
+                            error: true,
+                            code: errorCodes.QUESTION_CANNOT_BE_INSERTED_OR_UPDATED,
+                            message: 'The question neither could be inserted nor could be updated.'
+                        });
+                    }else {
+                        return res.json({error: false, data: data});
+                    }
+                });
             }else {
                 // A question with the given id and language found. Update it.
                 sql2 = "UPDATE quiz_questions_classic SET question = ?, category = ?, subcategory = ?, answer = ?, a = ?, b = ?, c = ?, d= ? WHERE id = ? AND lang = ?";
@@ -248,22 +266,25 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question'
                     req.body.id,
                     lang
                 ];
-            }
 
-            conn.query(sql2, data, (error2, rows2) => {
-                conn.release();
-                if (error2) return res.json({error: true, message: error2.message});;
-    
-                if (rows2['affectedRows'] === 0){
-                    return res.json({
-                        error: true,
-                        code: errorCodes.QUESTION_CANNOT_BE_INSERTED_OR_UPDATED,
-                        message: 'The question neither could be inserted nor could be updated.'
-                    });
-                }else {
-                    return res.json({error: false, data: data});
-                }
-            });
+                console.log('Updating classic question...');
+                console.log('Request id: ' + req.body.id + ', lang: ' + lang + ', question: ' + req.body.question);
+
+                conn.query(sql2, data, (error2, rows2) => {
+                    conn.release();
+                    if (error2) return res.json({error: true, message: error2.message});;
+        
+                    if (rows2['affectedRows'] === 0){
+                        return res.json({
+                            error: true,
+                            code: errorCodes.QUESTION_CANNOT_BE_INSERTED_OR_UPDATED,
+                            message: 'The question neither could be inserted nor could be updated.'
+                        });
+                    }else {
+                        return res.json({error: false, data: data});
+                    }
+                });
+            }
         });
     })
 });
