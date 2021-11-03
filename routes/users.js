@@ -27,7 +27,7 @@ const gcs = new Storage({
 const defaultBucket = gcs.bucket('anatomica-ec2cd.appspot.com');
 
 // Fetch all users.
-router.post("/", checkPrivilege(privileges['anatomica.list.users']), (req, res) => {
+router.post("/list", checkPrivilege(privileges['anatomica.list.users']), (req, res) => {
     const sql = "SELECT id, name, surname, email, password, UNIX_TIMESTAMP(date_joined) as date_joined, UNIX_TIMESTAMP(name_last_changed) as name_last_changed, pp, active, hash, account_type, google_id, apple_id FROM users";
 
     pool.getConnection(function (err, conn) {
@@ -673,7 +673,7 @@ router.post("/password/resetMail/", (req, res) => {
                             if (rows2['affectedRows'] !== 0) {
                                 // Everything is awesome! Let's send the email.
 
-                                sendPasswordResetMail(user['id'], req.body.email, token);
+                                sendPasswordResetMail(user['id'], user['name'], req.body.email, token);
 
                                 return res.json({
                                     error: false,
@@ -943,7 +943,7 @@ async function sendWelcomeMail(name, email) {
     });
 }
 
-async function sendPasswordResetMail(id, email, token) {
+async function sendPasswordResetMail(id, name, email, token) {
     let mailPath = path.join(__dirname, "../mail_templates/reset_password.html");
     let resetURL = 'https://anatomica-scx43dzaka-ew.a.run.app/v1/users/password/reset/' + id + '/' + token;
 
@@ -952,6 +952,7 @@ async function sendPasswordResetMail(id, email, token) {
         if (err) return err.message;
 
         let result = data.replace(/{RESET_URL}/g, resetURL);
+        result = result.replace(/{USER}/g, name);
         result = result.replace(/{EMAIL}/g, email);
 
         // Send the mail.
