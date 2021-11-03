@@ -57,7 +57,7 @@ $(document).ready(function () {
                     success: function (json) {
                         loadingOverlay().cancel(loading);
                         if (json.error !== true) {
-                            location.replace("./page_templates/password_changed.html");
+                            window.location.href = "https://anatomica-scx43dzaka-ew.a.run.app/page_templates/password_changed.html";
                         }else {
                             $.toast({ 
                                 heading: 'Hata',
