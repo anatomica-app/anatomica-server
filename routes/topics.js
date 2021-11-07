@@ -11,9 +11,9 @@ const constants = require('./constants');
 const errorCodes = require('./errors');
 const privileges = require('../privileges');
 
-// Fetching all the subcategories.
+// Fetching all the topics.
 router.get('/', checkAuth, (req, res) => {
-    const sql = "SELECT * FROM quiz_subcategory";
+    const sql = "SELECT * FROM quiz_topic";
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
@@ -26,8 +26,8 @@ router.get('/', checkAuth, (req, res) => {
     });
 });
 
-// Fetching all the subcategories with the given category.
-router.post('/withCategory', checkAuth, (req, res) => {
+// Fetching all the topics with the given subcategory.
+router.post('/withSubcategory', checkAuth, (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required(),
         lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
@@ -40,11 +40,11 @@ router.post('/withCategory', checkAuth, (req, res) => {
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
-    const sql = "SELECT quiz_subcategory.* FROM quiz_category_subcategories INNER JOIN quiz_category ON quiz_category_subcategories.category = quiz_category.id INNER JOIN quiz_subcategory ON quiz_category_subcategories.subcategory = quiz_subcategory.id WHERE quiz_category.id = ? AND quiz_subcategory.lang = ? AND quiz_category.lang = ?";
+    const sql = "SELECT * FROM quiz_topic WHERE subcategory = ? AND lang = ?";
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
-        conn.query(sql, [req.body.id, lang, lang],(error, rows) => {
+        conn.query(sql, [req.body.id, lang],(error, rows) => {
             conn.release();
             if (error) return res.json({error: true, message: error.message});
 
@@ -53,29 +53,34 @@ router.post('/withCategory', checkAuth, (req, res) => {
     });
 });
 
-// Create a new subcategory.
-router.post('/', checkAuth, checkPrivilege(privileges['anatomica.add.subcategory']), (req, res) => {
+// Create a new topic.
+router.post('/', checkAuth, checkPrivilege(privileges['anatomica.add.topic']), (req, res) => {
     const schema = Joi.object({
         name: Joi.string().required(),
-        category: Joi.number().integer().required()
+        subcategory: Joi.number().integer().required(),
+        lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
     });
+
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
-    const sql = "INSERT INTO quiz_subcategory (name, category) VALUES (?,?)";
+    const sql = "INSERT INTO quiz_topic (lang, name, subcategory) VALUES (?,?,?)";
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
-        conn.query(sql, [req.body.name, req.body.category], (error, rows) => {
+        conn.query(sql, [lang, req.body.name, req.body.category, req.body.subcategory], (error, rows) => {
             conn.release();
             if (error) return res.json({error: true, message: error.message});
 
             if (rows['insertId'] === 0) {
                 return res.json({
                     error: true,
-                    code: errorCodes.SUBCATEGORY_CAN_NOT_BE_CREATED,
-                    message: 'The subcategory can not be created.'
+                    code: errorCodes.TOPIC_CAN_NOT_BE_CREATED,
+                    message: 'The topic can not be created.'
                 });
             }else {
                 return res.json({error: false, data: rows['insertId']});
@@ -84,21 +89,27 @@ router.post('/', checkAuth, checkPrivilege(privileges['anatomica.add.subcategory
     });
 });
 
-// Update a subcategory.
-router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.subcategory']), (req, res) => {
+// Update a topic.
+router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.topic']), (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required(),
         name: Joi.string().required(),
-        category: Joi.number().integer().required()
+        subcategory: Joi.number().integer().required(),
+        lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
     });
+
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
-    const sql = "UPDATE quiz_subcategory SET name = ?, category = ? WHERE id = ?";
+    const sql = "UPDATE quiz_topic SET lang = ?, name = ?, category = ?, subcategory = ? WHERE id = ?";
     const data = [
+        lang,
         req.body.name,
-        req.body.category,
+        req.body.subcategory,
         req.body.id
     ]
 
@@ -111,8 +122,8 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.subcatego
             if (rows['affectedRows'] === 0) {
                 return res.json({
                     error: true,
-                    code: errorCodes.SUBCATEGORY_CAN_NOT_BE_UPDATED,
-                    message: 'The subcategory can not be updated.'
+                    code: errorCodes.TOPIC_CAN_NOT_BE_UPDATED,
+                    message: 'The topic can not be updated.'
                 });
             }else {
                 return res.json({error: false, data: data});
@@ -121,8 +132,8 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.subcatego
     });
 });
 
-// Delete a category.
-router.delete('/', checkAuth, checkPrivilege(privileges['anatomica.delete.subcategory']), async (req, res) => {
+// Delete a topic.
+router.delete('/', checkAuth, checkPrivilege(privileges['anatomica.delete.topic']), async (req, res) => {
     const schema = Joi.object({
         id: Joi.number().integer().required()
     });
@@ -130,7 +141,7 @@ router.delete('/', checkAuth, checkPrivilege(privileges['anatomica.delete.subcat
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
-    const sql = "DELETE FROM quiz_subcategory WHERE id = ?";
+    const sql = "DELETE FROM quiz_topic WHERE id = ?";
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
@@ -140,8 +151,8 @@ router.delete('/', checkAuth, checkPrivilege(privileges['anatomica.delete.subcat
 
             if (rows['affectedRows'] === 0) return res.json({
                 error: true,
-                code: errorCodes.SUBCATEGORY_NOT_FOUND,
-                message: 'The subcategory with the given id was not fount on the server.'
+                code: errorCodes.TOPIC_NOT_FOUND,
+                message: 'The topic with the given id was not fount on the server.'
             });
             else return res.json({error: false, id: req.body.id});
         });

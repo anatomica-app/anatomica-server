@@ -4,6 +4,7 @@ const rateLimit = require("express-rate-limit");
 
 const app = express();
 const port = process.env.port || 8080;
+const apiVersion = 'v1'
 
 // Rate Limiter Middleware for protecting against DDoS attacks.
 app.set('trust proxy', 1);
@@ -26,6 +27,7 @@ app.use(cors({
 
 const categoriesRoute = require('./routes/categories');
 const subcategoriesRoute = require('./routes/subcategories');
+const topicsRoute = require('./routes/topics');
 const classicQuestionsroute = require('./routes/classicQuestions');
 const imageQuestionsroute = require('./routes/imageQuestions');
 const usersRoute = require('./routes/users');
@@ -42,15 +44,16 @@ app.use(express.static('public'));
 
 // ***** Server Methods *****
 
-app.use('/v1/quiz/category', categoriesRoute);
-app.use('/v1/quiz/subcategory', subcategoriesRoute);
-app.use('/v1/quiz/classic', classicQuestionsroute);
-app.use('/v1/quiz/image', imageQuestionsroute);
-app.use('/v1/users', usersRoute);
-app.use('/v1/feedback', feedbacksRoute);
-app.use('/v1/report', reportsRoute);
-app.use('/v1/admin-panel', adminPanelRoute);
-app.use('/v1/contact', contactRoute);
+app.use('/' + apiVersion + '/quiz/category', categoriesRoute);
+app.use('/' + apiVersion + '/quiz/subcategory', subcategoriesRoute);
+app.use('/' + apiVersion + '/quiz/topics', topicsRoute);
+app.use('/' + apiVersion + '/quiz/classic', classicQuestionsroute);
+app.use('/' + apiVersion + '/quiz/image', imageQuestionsroute);
+app.use('/' + apiVersion + '/users', usersRoute);
+app.use('/' + apiVersion + '/feedback', feedbacksRoute);
+app.use('/' + apiVersion + '/report', reportsRoute);
+app.use('/' + apiVersion + '/admin-panel', adminPanelRoute);
+app.use('/' + apiVersion + '/contact', contactRoute);
 
 app.listen(port, () => {
     console.log('App listening at port: ' + port);
