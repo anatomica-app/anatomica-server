@@ -94,6 +94,7 @@ router.post('/withCategory', checkAuth, async (req, res) => {
     const schema = Joi.object({
         category: Joi.number().integer().required(),
         subcategories: Joi.array().required(),
+        topics: Joi.array(),
         maxQuestionCount: Joi.number().integer().min(1).required(),
         lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
     });
@@ -117,6 +118,18 @@ router.post('/withCategory', checkAuth, async (req, res) => {
 
         if (subcategories.length !== 1 && i !== (subcategories.length - 1)) {
             subcategoryQuery += " OR ";
+        }
+    }
+
+    if (req.body.topics) {
+        let topics = req.body.topics;
+        subcategoryQuery += " OR ";
+        for (let j = 0; j < topics.length; j++) {
+            subcategoryQuery += ("topic = " + topics[j]);
+    
+            if (subcategories.length !== 1 && j !== (subcategories.length - 1)) {
+                subcategoryQuery += " OR ";
+            }
         }
     }
 
