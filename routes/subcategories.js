@@ -103,7 +103,18 @@ router.post('/withCategory/withTopics', checkAuth, (req, res) => {
                     };
                 }
 
-                const sql2 = "SELECT * FROM quiz_topic WHERE lang = ?";
+                let sql2 = "";
+
+                switch (req.body.type) {
+                    case 1:
+                        // Pictured questions.
+                        sql2 = "SELECT * FROM quiz_topic WHERE lang = ? AND quiz_topic.image = 1";
+                        break;
+                    case 2:
+                        // Classic questions.
+                        sql2 = "SELECT * FROM quiz_topic WHERE lang = ? AND quiz_topic.classic = 1";
+                        break;
+                }
 
                 conn.query(sql2, [lang], (error2, rows2) => {
                     conn.release();
