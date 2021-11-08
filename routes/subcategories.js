@@ -53,6 +53,89 @@ router.post('/withCategory', checkAuth, (req, res) => {
     });
 });
 
+// Fetching all the subcategories with category and the relevant topics to it.
+router.post('/withCategory/withTopics', checkAuth, (req, res) => {
+    const schema = Joi.object({
+        category: Joi.number().integer().required(),
+        lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
+    });
+
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
+
+    const result = schema.validate(req.body);
+    if (result.error) return res.json({error: true, message: result.error.details[0].message});
+
+    const sql = "SELECT quiz_subcategory.* FROM quiz_category_subcategories INNER JOIN quiz_category ON quiz_category_subcategories.category = quiz_category.id INNER JOIN quiz_subcategory ON quiz_category_subcategories.subcategory = quiz_subcategory.id WHERE quiz_category.id = ? AND quiz_subcategory.lang = ? AND quiz_category.lang = ?";
+
+    pool.getConnection(function(err, conn){
+        if (err) return res.json({error: true, message: err.message});
+        conn.query(sql, [req.body.category, lang, lang], (error, rows) => {
+            if (error) return res.json({error: true, message: error.message});
+
+            if(rows[0]) {
+                // We should loop through the subcategories.
+
+                let subcategoryArray = [];
+
+                for (let i = 0; i < rows.length; i++) {
+                    subcategoryArray[i] = {
+                        id: rows[i].id,
+                        lang: rows[i].lang,
+                        name: rows[i].name,
+                        topics: [],
+                        image: rows[i].image,
+                        classic: rows[i].classic,
+                        date_added: rows[i].date_added,
+                    };
+                }
+
+                const sql2 = "SELECT * FROM quiz_topic WHERE lang = ?";
+
+                conn.query(sql2, [lang], (error2, rows2) => {
+                    conn.release();
+                    if (error2) return res.json({error: true, message: error2.message});
+
+                    if (rows2[0]) {
+                        // We should loop through the topics.
+                        let subcategoryId = rows2[0].subcategory;
+
+                        for (let i = 0; i < rows2.length; i++) {
+                            for (let j = 0; j < subcategoryArray.length; j++) {
+                                if (subcategoryArray[j].id == rows2[i].subcategory) {
+                                    subcategoryArray[j].topics.push({
+                                        id: rows2[i].id,
+                                        lang: rows2[i].lang,
+                                        subcategory: rows2[i].subcategory,
+                                        name: rows2[i].name,
+                                        date_added: rows2[i].date_added,
+                                    })
+                                }
+                            }
+                        }
+
+                        return res.json({error: false, data: subcategoryArray});
+
+                    }else {
+                        return res.json({
+                            error: true,
+                            message: 'There is not any topics.'
+                        });
+                    }
+                });
+
+                // return res.json({error: false, data: subcategoryArray});
+            }else {
+                return res.json({
+                    error: true,
+                    message: 'There isn\'t any subcategory.'
+                });
+            }
+        });
+    });
+});
+
 // Fetching all the subcategories and the relevant topics to it.
 router.post('/withTopics', checkAuth, (req, res) => {
     const schema = Joi.object({
