@@ -57,6 +57,7 @@ router.post('/withCategory', checkAuth, (req, res) => {
 router.post('/withCategory/withTopics', checkAuth, (req, res) => {
     const schema = Joi.object({
         category: Joi.number().integer().required(),
+        type: Joi.number().integer().valid(1,2).required(), // 1 -> pictured, 2 -> classic
         lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
     });
 
@@ -67,7 +68,18 @@ router.post('/withCategory/withTopics', checkAuth, (req, res) => {
     const result = schema.validate(req.body);
     if (result.error) return res.json({error: true, message: result.error.details[0].message});
 
-    const sql = "SELECT quiz_subcategory.* FROM quiz_category_subcategories INNER JOIN quiz_category ON quiz_category_subcategories.category = quiz_category.id INNER JOIN quiz_subcategory ON quiz_category_subcategories.subcategory = quiz_subcategory.id WHERE quiz_category.id = ? AND quiz_subcategory.lang = ? AND quiz_category.lang = ?";
+    let sql = "";
+
+    switch (req.body.type) {
+        case 1:
+            // Pictured questions.
+            sql = "SELECT quiz_subcategory.* FROM quiz_category_subcategories INNER JOIN quiz_category ON quiz_category_subcategories.category = quiz_category.id INNER JOIN quiz_subcategory ON quiz_category_subcategories.subcategory = quiz_subcategory.id WHERE quiz_category.id = ? AND quiz_subcategory.image = 1 AND quiz_subcategory.image_count > 0 AND quiz_subcategory.lang = ? AND quiz_category.lang = ?";
+            break;
+        case 2:
+            // Classic questions.
+            sql = "SELECT quiz_subcategory.* FROM quiz_category_subcategories INNER JOIN quiz_category ON quiz_category_subcategories.category = quiz_category.id INNER JOIN quiz_subcategory ON quiz_category_subcategories.subcategory = quiz_subcategory.id WHERE quiz_category.id = ? AND quiz_subcategory.classic = 1 AND quiz_subcategory.classic_count > 0 AND quiz_subcategory.lang = ? AND quiz_category.lang = ?";
+            break;
+    }
 
     pool.getConnection(function(err, conn){
         if (err) return res.json({error: true, message: err.message});
@@ -91,7 +103,18 @@ router.post('/withCategory/withTopics', checkAuth, (req, res) => {
                     };
                 }
 
-                const sql2 = "SELECT * FROM quiz_topic WHERE lang = ?";
+                let sql2 = "";
+
+                switch (req.body.type) {
+                    case 1:
+                        // Pictured questions.
+                        sql2 = "SELECT * FROM quiz_topic WHERE lang = ? AND quiz_topic.image = 1";
+                        break;
+                    case 2:
+                        // Classic questions.
+                        sql2 = "SELECT * FROM quiz_topic WHERE lang = ? AND quiz_topic.classic = 1";
+                        break;
+                }
 
                 conn.query(sql2, [lang], (error2, rows2) => {
                     conn.release();
