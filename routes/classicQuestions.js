@@ -127,7 +127,7 @@ router.post('/withCategory', checkAuth, async (req, res) => {
         for (let j = 0; j < topics.length; j++) {
             subcategoryQuery += ("topic = " + topics[j]);
     
-            if (subcategories.length !== 1 && j !== (subcategories.length - 1)) {
+            if (topics.length !== 1 && j !== (topics.length - 1)) {
                 subcategoryQuery += " OR ";
             }
         }
