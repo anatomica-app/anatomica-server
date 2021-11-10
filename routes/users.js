@@ -807,7 +807,7 @@ async function sendRegisterMail(name, email, id, hash) {
     fs.readFile(mailPath, "utf8", async function (err, data) {
         if (err) return err.message;
 
-        let verifyUrl = `https://anatomica-scx43dzaka-ew.a.run.app/v1/users/verify/${id}/${hash}`;
+        let verifyUrl = `https://api.anatomica-app.com/v1/users/verify/${id}/${hash}`;
 
         let result = data.replace(/{NAME}/g, name);
         result = result.replace(/{EMAIL}/g, email);
@@ -871,7 +871,7 @@ async function sendWelcomeMail(name, email) {
 
 async function sendPasswordResetMail(id, name, email, token) {
     let mailPath = path.join(__dirname, "../mail_templates/reset_password.html");
-    let resetURL = 'https://anatomica-scx43dzaka-ew.a.run.app/v1/users/password/reset/' + id + '/' + token;
+    let resetURL = 'https://api.anatomica-app.com/v1/users/password/reset/' + id + '/' + token;
 
     // Prepare the HTML with replacing the placeholder strings.
     fs.readFile(mailPath, "utf8", async function (err, data) {
