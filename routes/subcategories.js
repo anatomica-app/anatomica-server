@@ -103,18 +103,7 @@ router.post('/withCategory/withTopics', checkAuth, (req, res) => {
                     };
                 }
 
-                let sql2 = "";
-
-                switch (req.body.type) {
-                    case 1:
-                        // Pictured questions.
-                        sql2 = "SELECT * FROM quiz_topic WHERE lang = ? AND quiz_topic.image = 1";
-                        break;
-                    case 2:
-                        // Classic questions.
-                        sql2 = "SELECT * FROM quiz_topic WHERE lang = ? AND quiz_topic.classic = 1";
-                        break;
-                }
+                let sql2 = "SELECT * FROM quiz_topic WHERE lang = ?";
 
                 conn.query(sql2, [lang], (error2, rows2) => {
                     conn.release();
@@ -122,8 +111,6 @@ router.post('/withCategory/withTopics', checkAuth, (req, res) => {
 
                     if (rows2[0]) {
                         // We should loop through the topics.
-                        let subcategoryId = rows2[0].subcategory;
-
                         for (let i = 0; i < rows2.length; i++) {
                             for (let j = 0; j < subcategoryArray.length; j++) {
                                 if (subcategoryArray[j].id == rows2[i].subcategory) {
@@ -132,6 +119,8 @@ router.post('/withCategory/withTopics', checkAuth, (req, res) => {
                                         lang: rows2[i].lang,
                                         subcategory: rows2[i].subcategory,
                                         name: rows2[i].name,
+                                        classic: rows2[i].classic,
+                                        image: rows2[i].image,
                                         date_added: rows2[i].date_added,
                                     })
                                 }
@@ -147,8 +136,6 @@ router.post('/withCategory/withTopics', checkAuth, (req, res) => {
                         });
                     }
                 });
-
-                // return res.json({error: false, data: subcategoryArray});
             }else {
                 return res.json({
                     error: true,
