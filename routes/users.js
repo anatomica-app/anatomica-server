@@ -162,7 +162,7 @@ router.post("/login", (req, res) => {
 });
 
 // Login user with Google.
-router.post("/login/google", (req, res) => {
+router.post("/google", (req, res) => {
     const schema = Joi.object({
         name: Joi.string().min(3).max(64).required(),
         surname: Joi.string().max(64).required(),
@@ -224,10 +224,15 @@ router.post("/login/google", (req, res) => {
 });
 
 // Login user with Apple.
-router.post("/login/apple", (req, res) => {
+router.post("/apple", (req, res) => {
     const schema = Joi.object({
+        name: Joi.string().min(3).max(64).allow(null),
+        surname: Joi.string().max(64).allow(null),
+        email: Joi.string().min(3).max(64).allow(null),
         apple_id: Joi.string().required()
     });
+
+    console.log('Name: ' + req.body.name + ', Surname: ' + req.body.surname + ', Email: ' + req.body.email + ', apple_id: ' + req.body.apple_id);
 
     const result = schema.validate(req.body);
     if (result.error)
@@ -242,11 +247,17 @@ router.post("/login/apple", (req, res) => {
             if (error) return res.json({ error: true, message: error.message });
 
             if (!rows[0]) {
-                return res.json({
-                    error: true,
-                    code: errorCodes.USER_NOT_FOUND,
-                    message: "The user with the given Apple ID was not found on the server.",
-                });
+                // The user with the same email address was not
+                // found on the server. Create a new record.
+                if (req.body.name && req.body.surname && req.body.email) {
+                    createAppleUser(req.body.name, req.body.surname, req.body.email, req.body.apple_id, res);
+                }else {
+                    return res.json({
+                        error: true,
+                        code: errorCodes.USER_NOT_FOUND,
+                        message: "The user with the given Apple ID was not found on the server.",
+                    });    
+                }
             } else {
                 const user = rows[0];
 
@@ -338,91 +349,6 @@ router.post("/", (req, res) => {
             }
         });
     });
-});
-
-// Create user with Google account.
-router.post("/google", (req, res) => {
-    const schema = Joi.object({
-        name: Joi.string().min(3).max(64).required(),
-        surname: Joi.string().max(64).required(),
-        email: Joi.string().min(3).max(64).required(),
-        pp: Joi.string().max(1024).allow(null).required(),
-    });
-
-    const result = schema.validate(req.body);
-    if (result.error)
-        return res.json({ error: true, message: result.error.details[0].message });
-
-    createGoogleUser(req.body.name, req.body.surname, req.body.email, req.body.pp, res);
-});
-
-// Create a user with Apple account.
-router.post("/apple/create", (req, res) => {
-    const schema = Joi.object({
-        name: Joi.string().min(3).max(64).required(),
-        surname: Joi.string().max(64).required(),
-        email: Joi.string().min(3).max(64).required(),
-        apple_id: Joi.string().required()
-    });
-
-    const result = schema.validate(req.body);
-    if (result.error)
-        return res.json({ error: true, message: result.error.details[0].message });
-
-    const sql = "SELECT * FROM users WHERE email = ? LIMIT 1";
-
-    pool.getConnection(function (err, conn) {
-        if (err) return res.json({ error: true, message: err.message });
-        conn.query(sql, [req.body.email], (error, rows) => {
-            if (error) {
-                conn.release();
-                return res.json({ error: true, message: error.message });
-            }
-
-            if (!rows[0]) {
-                const sql2 = "INSERT INTO users (name, surname, email, hash, active, account_type, apple_id) VALUES (?,?,?,?,1,?,?)";
-                const hash = crypto.createHash("md5").update(req.body.email).digest("hex");
-
-                conn.query(sql2, [req.body.name, req.body.surname, req.body.email, hash, constants.ACCOUNT_APPLE, req.body.apple_id], (error2, rows2) => {
-                    if (error2) {
-                        conn.release();
-                        return res.json({ error: true, message: error2.message });
-                    }
-
-                    if (rows2['insertId'] !== 0) {
-                        const token = jwt.sign(
-                            {
-                                id: rows2['insertId'],
-                                email: req.body.email
-                            },
-                            process.env.JWT_PRIVATE_KEY,
-                            {
-                                expiresIn: "1h"
-                            }
-                        );
-
-                        sendWelcomeMail(req.body.name, req.body.email);
-
-                        return res.json({ error: false, id: rows2["insertId"], token: token });
-                    } else {
-                        return res.json({
-                            error: true,
-                            code: errorCodes.USER_CAN_NOT_BE_CREATED,
-                            message: 'The user can not be created.'
-                        });
-                    }
-                });
-            } else {
-                // The user was already exists with this email address.
-                return res.json({
-                    error: true,
-                    code: errorCodes.USER_ALREADY_EXISTS,
-                    message: 'The user already exists with this email address.',
-                });
-            }
-        });
-    });
-
 });
 
 // Change user name.
@@ -688,7 +614,7 @@ router.post("/password/resetMail/", (req, res) => {
                             }
                         });
                     });
-                }else {
+                } else {
                     return res.json({
                         error: true,
                         code: errorCodes.USER_REGISTERED_WITH_ANOTHER_PROVIDER,
@@ -881,7 +807,7 @@ async function sendRegisterMail(name, email, id, hash) {
     fs.readFile(mailPath, "utf8", async function (err, data) {
         if (err) return err.message;
 
-        let verifyUrl = `https://anatomica-scx43dzaka-ew.a.run.app/v1/users/verify/${id}/${hash}`;
+        let verifyUrl = `https://api.anatomica-app.com/v1/users/verify/${id}/${hash}`;
 
         let result = data.replace(/{NAME}/g, name);
         result = result.replace(/{EMAIL}/g, email);
@@ -945,7 +871,7 @@ async function sendWelcomeMail(name, email) {
 
 async function sendPasswordResetMail(id, name, email, token) {
     let mailPath = path.join(__dirname, "../mail_templates/reset_password.html");
-    let resetURL = 'https://anatomica-scx43dzaka-ew.a.run.app/v1/users/password/reset/' + id + '/' + token;
+    let resetURL = 'https://api.anatomica-app.com/v1/users/password/reset/' + id + '/' + token;
 
     // Prepare the HTML with replacing the placeholder strings.
     fs.readFile(mailPath, "utf8", async function (err, data) {
@@ -986,6 +912,43 @@ function createGoogleUser(name, surname, email, pp, google_id, res) {
     pool.getConnection(function (err, conn) {
         if (err) return res.json({ error: true, message: err.message });
         conn.query(sql, [name, surname, email, pp, hash, constants.ACCOUNT_GOOGLE, google_id], (error, rows) => {
+            conn.release();
+            if (error) return res.json({ error: true, message: error.message });
+
+            if (rows['insertId'] !== 0) {
+                const token = jwt.sign(
+                    {
+                        id: rows["insertId"],
+                        email: email
+                    },
+                    process.env.JWT_PRIVATE_KEY,
+                    {
+                        expiresIn: "1h"
+                    }
+                );
+
+                sendWelcomeMail(name, email);
+
+                return res.json({ error: false, id: rows["insertId"], token: token });
+            } else {
+                return res.json({
+                    error: true,
+                    code: errorCodes.USER_CAN_NOT_BE_CREATED,
+                    message: 'The user can not be created.'
+                });
+            }
+        });
+    });
+}
+
+function createAppleUser(name, surname, email, apple_id, res) {
+    const sql =
+        "INSERT INTO users (name, surname, email, hash, active, account_type, apple_id) VALUES (?,?,?,?,1,?,?)";
+    const hash = crypto.createHash("md5").update(email).digest("hex");
+
+    pool.getConnection(function (err, conn) {
+        if (err) return res.json({ error: true, message: err.message });
+        conn.query(sql, [name, surname, email, hash, constants.ACCOUNT_APPLE, apple_id], (error, rows) => {
             conn.release();
             if (error) return res.json({ error: true, message: error.message });
 
