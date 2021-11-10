@@ -133,12 +133,18 @@ router.post('/withCategory', checkAuth, async (req, res) => {
 
     if (req.body.topics) {
         let topics = req.body.topics;
-        subcategoryQuery += " OR ";
-        for (let j = 0; j < topics.length; j++) {
-            subcategoryQuery += ("topic = " + topics[j]);
-    
-            if (topics.length !== 1 && j !== (topics.length - 1)) {
+
+        if (topics.length > 0) {
+            if (subcategories.length > 0) {
                 subcategoryQuery += " OR ";
+            }
+            
+            for (let j = 0; j < topics.length; j++) {
+                subcategoryQuery += ("topic = " + topics[j]);
+        
+                if (topics.length !== 1 && j !== (topics.length - 1)) {
+                    subcategoryQuery += " OR ";
+                }
             }
         }
     }
