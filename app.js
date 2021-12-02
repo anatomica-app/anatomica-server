@@ -35,6 +35,8 @@ const feedbacksRoute = require('./routes/feedbacks');
 const reportsRoute = require('./routes/reports');
 const adminPanelRoute = require('./routes/adminPanel');
 const contactRoute = require('./routes/contact');
+const purchasesRoute = require('./routes/purchases');
+const productsRoute = require('./routes/products');
 
 // Limit the payload for 10 MB.
 app.use(express.json({limit: 10000000}));
@@ -54,6 +56,8 @@ app.use('/' + apiVersion + '/feedback', feedbacksRoute);
 app.use('/' + apiVersion + '/report', reportsRoute);
 app.use('/' + apiVersion + '/admin-panel', adminPanelRoute);
 app.use('/' + apiVersion + '/contact', contactRoute);
+app.use('/' + apiVersion + '/purchase', purchasesRoute);
+app.use('/' + apiVersion + '/product', productsRoute);
 
 app.listen(port, () => {
     console.log('App listening at port: ' + port);
