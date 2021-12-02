@@ -5,6 +5,7 @@ const Joi = require('joi');
 
 const checkAuth = require('../middleware/check-auth');
 const checkPrivilege = require('../middleware/check-privilege');
+const checkCategoryAccess = require('../middleware/check-category-access');
 
 const pool = require('../database');
 const constants = require('./constants');
@@ -54,8 +55,10 @@ router.post('/withCategory', checkAuth, (req, res) => {
 });
 
 // Fetching all the subcategories with category and the relevant topics to it.
-router.post('/withCategory/withTopics', checkAuth, (req, res) => {
+router.post('/withCategory/withTopics', checkAuth, checkCategoryAccess, (req, res) => {
     const schema = Joi.object({
+        user: Joi.number().integer(), // User ID
+        sku: Joi.string(), // SKU of the category
         category: Joi.number().integer().required(),
         type: Joi.number().integer().valid(1,2).required(), // 1 -> pictured, 2 -> classic
         lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
