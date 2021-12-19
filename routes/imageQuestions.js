@@ -14,12 +14,8 @@ const errorCodes = require('./errors');
 const privileges = require('../privileges');
 
 // ***** Google Cloud Storage *****
-const gcs = new Storage({
-    keyFilename: path.join(__dirname, '../anatomica-ec2cd-a8621075b43a.json'),
-    projectId: 'anatomica-ec2cd'
-});
-
-const defaultBucket = gcs.bucket('anatomica-ec2cd.appspot.com');
+const storage = new Storage();
+const defaultBucket = storage.bucket('anatomica-storage');
 
 // Fetching all the Image Questions
 router.post('/', checkAuth, (req, res) => {
@@ -138,10 +134,10 @@ router.post('/withCategory', checkAuth, async (req, res) => {
             if (subcategories.length > 0) {
                 subcategoryQuery += " OR ";
             }
-            
+
             for (let j = 0; j < topics.length; j++) {
                 subcategoryQuery += ("topic = " + topics[j]);
-        
+
                 if (topics.length !== 1 && j !== (topics.length - 1)) {
                     subcategoryQuery += " OR ";
                 }
@@ -290,7 +286,7 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question'
                             conn.query(sql2, data, (error, rows) => {
                                 conn.release();
                                 if (error) return res.json({ error: true, message: error.message });
-        
+
                                 if (rows['affectedRows'] === 0) {
                                     return res.json({
                                         error: true,
@@ -355,7 +351,7 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question'
                             conn.query(sql2, data, (error, rows) => {
                                 conn.release();
                                 if (error) return res.json({ error: true, message: error.message });
-        
+
                                 if (rows['affectedRows'] === 0) {
                                     return res.json({
                                         error: true,
@@ -395,7 +391,7 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question'
                         conn.query(sql3, [req.body.id], (error, rows) => {
                             conn.release();
                             if (error) return res.json({ error: true, message: error.message });
-    
+
                             if (!rows[0]) {
                                 return res.json({
                                     error: true,
@@ -423,7 +419,7 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question'
                                     conn.query(sql2, data, (error, rows) => {
                                         conn.release();
                                         if (error) return res.json({ error: true, message: error.message });
-                
+
                                         if (rows['affectedRows'] === 0) {
                                             return res.json({
                                                 error: true,
@@ -438,7 +434,7 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question'
                             }
                         });
                     });
-                }else {
+                } else {
                     // We are not adding new language.
                     // Let's update the fields.
                     console.log('There is not a photo, updating the existing language.');
@@ -461,7 +457,7 @@ router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.question'
                         conn.query(sql2, data, (error, rows) => {
                             conn.release();
                             if (error) return res.json({ error: true, message: error.message });
-    
+
                             if (rows['affectedRows'] === 0) {
                                 return res.json({
                                     error: true,

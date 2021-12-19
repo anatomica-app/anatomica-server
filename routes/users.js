@@ -19,12 +19,11 @@ const errorCodes = require('./errors');
 const privileges = require('../privileges');
 
 // ***** Google Cloud Storage *****
-const gcs = new Storage({
-    keyFilename: path.join(__dirname, '../anatomica-ec2cd-a8621075b43a.json'),
-    projectId: 'anatomica-ec2cd'
-});
+const storage = new Storage();
+const defaultBucket = storage.bucket('anatomica-storage');
 
-const defaultBucket = gcs.bucket('anatomica-ec2cd.appspot.com');
+const apiPrefix = 'https://quiz.api.anatomica-app.com/';
+const apiVersion = 'v1';
 
 // Fetch all users.
 router.post("/list", checkPrivilege(privileges['anatomica.list.users']), (req, res) => {
@@ -256,7 +255,7 @@ router.post("/apple", (req, res) => {
                         error: true,
                         code: errorCodes.USER_NOT_FOUND,
                         message: "The user with the given Apple ID was not found on the server.",
-                    });    
+                    });
                 }
             } else {
                 const user = rows[0];
@@ -397,10 +396,10 @@ router.put("/changeProfilePicture", async (req, res) => {
                     // Delete the file. We need to strip the url
                     // in order to get the bucket file path.
                     // Let's strip down before /quiz_question_images/..
-                    // https://storage.googleapis.com/anatomica-ec2cd.appspot.com/user_profile_images/1631631802266.jpg
+                    // https://storage.googleapis.com/anatomica-storage/user_profile_images/1631631802266.jpg
 
                     let image = rows[0]['pp'];
-                    let imageUrl = image.split("anatomica-ec2cd.appspot.com/")[1];
+                    let imageUrl = image.split('anatomica-storage/')[1];
 
                     if (defaultBucket.file(imageUrl).exists()) {
                         async function deleteFile() {
@@ -418,7 +417,7 @@ router.put("/changeProfilePicture", async (req, res) => {
                 file.save(byteArray).then(async () => {
                     file.makePublic();
 
-                    const url = `https://storage.googleapis.com/anatomica-ec2cd.appspot.com/${fileURL}`;
+                    const url = `https://storage.googleapis.com/anatomica-storage/${fileURL}`;
 
                     data = [url, req.body.id];
 
@@ -807,7 +806,7 @@ async function sendRegisterMail(name, email, id, hash) {
     fs.readFile(mailPath, "utf8", async function (err, data) {
         if (err) return err.message;
 
-        let verifyUrl = `https://api.anatomica-app.com/v1/users/verify/${id}/${hash}`;
+        let verifyUrl = `${apiPrefix}${apiVersion}/users/verify/${id}/${hash}`;
 
         let result = data.replace(/{NAME}/g, name);
         result = result.replace(/{EMAIL}/g, email);
@@ -871,7 +870,7 @@ async function sendWelcomeMail(name, email) {
 
 async function sendPasswordResetMail(id, name, email, token) {
     let mailPath = path.join(__dirname, "../mail_templates/reset_password.html");
-    let resetURL = 'https://api.anatomica-app.com/v1/users/password/reset/' + id + '/' + token;
+    let resetURL = apiPrefix + apiVersion + '/users/password/reset/' + id + '/' + token;
 
     // Prepare the HTML with replacing the placeholder strings.
     fs.readFile(mailPath, "utf8", async function (err, data) {

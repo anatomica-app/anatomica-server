@@ -61,4 +61,25 @@ router.post('/withSku', checkAuth, async (req, res) => {
     });
 });
 
+router.post('/preview', checkAuth, async (req, res) => {
+    const schema = Joi.object({
+        sku: Joi.string().required(),
+    });
+
+    const result = schema.validate(req.body);
+    if (result.error) return res.json({ error: true, message: result.error.details[0].message });
+
+    const sql = "SELECT * FROM product_images WHERE sku = ? AND active = 1";
+
+    pool.getConnection(function (err, conn) {
+        if (err) return res.json({ error: true, message: err.message });
+        conn.query(sql, [req.body.sku], (error, rows) => {
+            conn.release();
+            if (error) return res.json({ error: true, message: error.message });
+
+            return res.json({ error: false, data: rows });
+        });
+    });
+});
+
 module.exports = router;
