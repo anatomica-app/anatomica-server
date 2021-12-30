@@ -407,9 +407,11 @@ router.put("/changeProfilePicture", async (req, res) => {
                     let image = rows[0]['pp'];
                     let imageUrl = image.split('anatomica-storage/')[1];
 
-                    if (defaultBucket.file(imageUrl).exists()) {
-                        async function deleteFile() {
-                            await defaultBucket.file(imageUrl).delete();
+                    if (imageUrl !== null || imageUrl !== undefined) {
+                        if (defaultBucket.file(imageUrl).exists()) {
+                            async function deleteFile() {
+                                await defaultBucket.file(imageUrl).delete();
+                            }
                         }
                     }
                 }
