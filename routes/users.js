@@ -250,7 +250,7 @@ router.post("/apple", (req, res) => {
                 // found on the server. Create a new record.
                 if (req.body.name && req.body.surname && req.body.email) {
                     createAppleUser(req.body.name, req.body.surname, req.body.email, req.body.apple_id, res);
-                }else {
+                } else {
                     return res.json({
                         error: true,
                         code: errorCodes.USER_NOT_FOUND,
@@ -311,12 +311,18 @@ router.post("/", (req, res) => {
                 bcrypt.hash(req.body.password, 10, function (err, hashedPassword) {
                     if (err) return res.json({ error: true, message: err.message });
 
-                    const hashedEmail = crypto
-                        .createHash("md5")
-                        .update(req.body.email)
-                        .digest("hex");
+                    // Create a new JWT.
+                    const token = jwt.sign(
+                        {
+                            email: req.body.email
+                        },
+                        process.env.JWT_PRIVATE_KEY,
+                        {
+                            expiresIn: "1h"
+                        }
+                    );
 
-                    conn.query(sql2, [req.body.name, req.body.surname, req.body.email, hashedPassword, hashedEmail], (error2, rows2) => {
+                    conn.query(sql2, [req.body.name, req.body.surname, req.body.email, hashedPassword, token], (error2, rows2) => {
                         conn.release();
                         if (error2)
                             return res.json({ error: true, message: error2.message });
@@ -332,7 +338,7 @@ router.post("/", (req, res) => {
                                 req.body.name,
                                 req.body.email,
                                 rows2['insertId'],
-                                hashedEmail
+                                token
                             );
                             return res.json({ error: false, data: rows2['insertId'] });
                         }
@@ -401,9 +407,11 @@ router.put("/changeProfilePicture", async (req, res) => {
                     let image = rows[0]['pp'];
                     let imageUrl = image.split('anatomica-storage/')[1];
 
-                    if (defaultBucket.file(imageUrl).exists()) {
-                        async function deleteFile() {
-                            await defaultBucket.file(imageUrl).delete();
+                    if (imageUrl !== null || imageUrl !== undefined) {
+                        if (defaultBucket.file(imageUrl).exists()) {
+                            async function deleteFile() {
+                                await defaultBucket.file(imageUrl).delete();
+                            }
                         }
                     }
                 }
@@ -449,20 +457,18 @@ router.put("/changeProfilePicture", async (req, res) => {
 // Send verify email again.
 router.post("/sendVerificationEmail", (req, res) => {
     const schema = Joi.object({
-        email: Joi.string().min(3).max(64).required(),
-        password: Joi.string().max(128).required(),
+        email: Joi.string().min(3).max(64).required()
     });
 
     const result = schema.validate(req.body);
     if (result.error)
         return res.json({ error: true, message: result.error.details[0].message });
 
-    const sql = "SELECT * FROM users WHERE email = ? AND password = ?";
+    const sql = "SELECT * FROM users WHERE email = ?";
 
     pool.getConnection(function (err, conn) {
         if (err) return res.json({ error: true, message: err.message });
-        conn.query(sql, [req.body.email, req.body.password], (error, rows) => {
-            conn.release();
+        conn.query(sql, [req.body.email], (error, rows) => {
             if (error) return res.json({ error: true, message: error.message });
 
             if (!rows[0]) {
@@ -481,16 +487,29 @@ router.post("/sendVerificationEmail", (req, res) => {
                     // We shouldn't send redundant mails.
                     if (user['active'] === 0) {
                         // User hasn't activated his/her account yet.
-                        const hash = crypto
-                            .createHash("md5")
-                            .update(req.body.email)
-                            .digest("hex");
 
-                        sendRegisterMail(rows[0]['name'], req.body.email, rows[0]['id'], hash);
+                        // Create a new JWT.
+                        const token = jwt.sign(
+                            {
+                                email: req.body.email
+                            },
+                            process.env.JWT_PRIVATE_KEY,
+                            {
+                                expiresIn: "1h"
+                            }
+                        );
 
-                        return res.json({
-                            error: false,
-                            data: "A verification email has been sent."
+                        const sql2 = "UPDATE users SET hash = ? WHERE email = ?";
+
+                        conn.query(sql2, [token, req.body.email], (error2, rows2) => {
+                            if (error) return res.json({ error: true, message: error2.message });
+
+                            sendRegisterMail(rows[0]['name'], req.body.email, rows[0]['id'], token);
+
+                            return res.json({
+                                error: false,
+                                data: "A verification email has been sent."
+                            });
                         });
                     } else {
                         return res.json({
@@ -513,33 +532,50 @@ router.post("/sendVerificationEmail", (req, res) => {
 
 // Verify mail address.
 router.get("/verify/:id/:hash", (req, res) => {
-    const sql = "UPDATE users SET active = 1 WHERE id = ? AND hash = ?";
 
-    pool.getConnection(function (err, conn) {
-        if (err) return res.json({ error: true, message: err.message });
-        conn.query(sql, [req.params.id, req.params.hash], (error, rows) => {
-            conn.release();
-            if (error) return res.json({ error: true, message: error.message });
+    try {
+        const token = req.params.hash
+        const decoded = jwt.verify(token, process.env.JWT_PRIVATE_KEY);
+        req.userData = decoded;
 
-            if (rows['affectedRows'] === 0) {
-                return res.json({
-                    error: true,
-                    code: errorCodes.USER_CAN_NOT_BE_VERIFIED,
-                    message: "The user with the given information can not be updated.",
-                });
-            } else {
-                let pagePath = path.join(__dirname, "../page_templates/verify_mail.html");
+        const sql = "UPDATE users SET active = 1 WHERE id = ? AND hash = ?";
 
-                fs.readFile(pagePath, function (err, data) {
-                    if (err) return res.json({ error: true, message: err.message });
+        pool.getConnection(function (err, conn) {
+            if (err) return res.json({ error: true, message: err.message });
+            conn.query(sql, [req.params.id, req.params.hash], (error, rows) => {
+                conn.release();
+                if (error) return res.json({ error: true, message: error.message });
 
-                    res.writeHead(200, { 'Content-Type': 'text/html' });
-                    res.write(data);
-                    return res.end();
-                });
-            }
+                if (rows['affectedRows'] === 0) {
+                    return res.json({
+                        error: true,
+                        code: errorCodes.USER_CAN_NOT_BE_VERIFIED,
+                        message: "The user with the given information can not be updated.",
+                    });
+                } else {
+                    let pagePath = path.join(__dirname, "../page_templates/verify_mail.html");
+
+                    fs.readFile(pagePath, function (err, data) {
+                        if (err) return res.json({ error: true, message: err.message });
+
+                        res.writeHead(200, { 'Content-Type': 'text/html' });
+                        res.write(data);
+                        return res.end();
+                    });
+                }
+            });
         });
-    });
+    } catch (error) {
+        let pagePath = path.join(__dirname, "../page_templates/expired_token.html");
+
+        fs.readFile(pagePath, function (err, data) {
+            if (err) return res.json({ error: true, message: err.message });
+
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.write(data);
+            return res.end();
+        });
+    }
 });
 
 // Send password reset request.
