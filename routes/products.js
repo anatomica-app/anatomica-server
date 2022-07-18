@@ -4,11 +4,8 @@ const router = express.Router();
 const Joi = require('joi');
 
 const checkAuth = require('../middleware/check-auth');
-const checkPrivilege = require('../middleware/check-privilege');
 
 const pool = require('../database');
-const constants = require('./constants');
-const errorCodes = require('./errors');
 
 router.post('/', checkAuth, async (req, res) => {
     const schema = Joi.object({
@@ -20,17 +17,17 @@ router.post('/', checkAuth, async (req, res) => {
     if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
-    if (result.error) return res.json({ error: true, message: result.error.details[0].message });
+    if (result.error) return res.status(400).json({ message: result.error.details[0].message });
 
-    const sql = "SELECT * FROM products WHERE lang = ?";
+    const sql = `SELECT id, title as name, description, sku FROM products WHERE lang = ${lang}`;
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.json({ error: true, message: err.message });
-        conn.query(sql, [lang], (error, rows) => {
+        if (err) return res.status(500).json({ message: err.message });
+        conn.query(sql, (error, rows) => {
             conn.release();
-            if (error) return res.json({ error: true, message: error.message });
+            if (error) return res.status(500).json({ message: error.message });
 
-            return res.json({ error: false, data: rows });
+            return res.send(rows);
         });
     });
 });
@@ -46,17 +43,17 @@ router.post('/withSku', checkAuth, async (req, res) => {
     if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
-    if (result.error) return res.json({ error: true, message: result.error.details[0].message });
+    if (result.error) return res.status(400).json({ message: result.error.details[0].message });
 
-    const sql = "SELECT * FROM products WHERE sku = ? AND lang = ?";
+    const sql = `SELECT id, title as name, description, sku FROM products WHERE sku = '${req.body.sku}' AND lang = ${lang}`;
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.json({ error: true, message: err.message });
-        conn.query(sql, [req.body.sku, lang], (error, rows) => {
+        if (err) return res.status(500).json({ message: err.message });
+        conn.query(sql, (error, rows) => {
             conn.release();
-            if (error) return res.json({ error: true, message: error.message });
+            if (error) return res.status(500).json({ message: error.message });
 
-            return res.json({ error: false, data: rows[0] });
+            return res.send(rows[0]);
         });
     });
 });
@@ -67,17 +64,17 @@ router.post('/preview', checkAuth, async (req, res) => {
     });
 
     const result = schema.validate(req.body);
-    if (result.error) return res.json({ error: true, message: result.error.details[0].message });
+    if (result.error) return res.status(400).json({ message: result.error.details[0].message });
 
-    const sql = "SELECT * FROM product_images WHERE sku = ? AND active = 1";
+    const sql = `SELECT * FROM product_images WHERE sku = '${req.body.sku}' AND active = 1`;
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.json({ error: true, message: err.message });
-        conn.query(sql, [req.body.sku], (error, rows) => {
+        if (err) return res.status(500).json({ message: err.message });
+        conn.query(sql, (error, rows) => {
             conn.release();
-            if (error) return res.json({ error: true, message: error.message });
+            if (error) return res.status(500).json({ message: error.message });
 
-            return res.json({ error: false, data: rows });
+            return res.send(rows[0]);
         });
     });
 });

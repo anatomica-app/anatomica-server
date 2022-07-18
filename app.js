@@ -13,14 +13,14 @@ const limiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
     max: 100, // limit each IP to 100 requests per windowMs
     handler: function (req, res, next) {
-        return res.json({error: true, message: 'Limit exceeded.'})
+        return res.json({ error: true, message: 'Limit exceeded.' })
     }
 });
 
 app.use(limiter);
 
 app.use(cors({
-    origin: 'https://anatomica-app.com',
+    origin: ['https://anatomica-app.com', 'https://quiz.api.anatomica-app.com', 'https://quiz.debug.api.anatomica-app.com'],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
     preflightContinue: true,
 }));
@@ -33,13 +33,11 @@ const imageQuestionsroute = require('./routes/imageQuestions');
 const usersRoute = require('./routes/users');
 const feedbacksRoute = require('./routes/feedbacks');
 const reportsRoute = require('./routes/reports');
-const adminPanelRoute = require('./routes/adminPanel');
 const contactRoute = require('./routes/contact');
-const purchasesRoute = require('./routes/purchases');
 const productsRoute = require('./routes/products');
 
 // Limit the payload for 10 MB.
-app.use(express.json({limit: 10000000}));
+app.use(express.json({ limit: 10000000 }));
 
 // Serving static files under public directory.
 app.use(express.static('public'));
@@ -54,10 +52,8 @@ app.use('/' + apiVersion + '/quiz/image', imageQuestionsroute);
 app.use('/' + apiVersion + '/users', usersRoute);
 app.use('/' + apiVersion + '/feedback', feedbacksRoute);
 app.use('/' + apiVersion + '/report', reportsRoute);
-app.use('/' + apiVersion + '/admin-panel', adminPanelRoute);
 app.use('/' + apiVersion + '/contact', contactRoute);
-app.use('/' + apiVersion + '/purchase', purchasesRoute);
-app.use('/' + apiVersion + '/product', productsRoute);
+app.use('/' + apiVersion + '/products', productsRoute);
 
 app.listen(port, () => {
     console.log('App listening at port: ' + port);
