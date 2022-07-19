@@ -9,9 +9,9 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Lobster&family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap"
-        rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500&display=swap" rel="stylesheet">
 </head>
 
 <body>
@@ -53,27 +53,12 @@
         .info-text {
             font-family: 'Poppins', sans-serif;
             font-size: 1.3rem;
-        }
-
-        .btn-bg {
-            font-family: 'Poppins', sans-serif;
-            font-size: 1rem;
-            font-weight: 300;
-            width: 300px;
-            padding: 15px 0;
-            margin: 50px 0;
-            text-align: center;
-            text-transform: uppercase;
-            text-decoration: none;
-            background: #872efe;
-            background-size: 200% auto;
-            transition: 0.5s;
-            color: white;
-            display: inline-block;
+            padding: 0 0 50px;
         }
 
         .footer-info-text {
             font-family: 'Poppins', sans-serif;
+            font-weight: 300;
             color: gray;
             word-wrap: break-word;
         }
@@ -106,28 +91,20 @@
     <!-- Main Content -->
     <div class="main-container">
         <div class="welcome-title">
-            <img src="https://anatomica-app.com/images/kaira/welcome.png" class="brand-logo" alt="anatomica_logo" width="200"
+            <img src="https://anatomica-app.com/images/kaira/goodbye.png" class="brand-logo" alt="anatomica_logo" width="200"
                 height="200" />
-            <h1>Anatomica'ya Hoş Geldiniz!</h1>
+            <h1>Hesabınız Silindi</h1>
         </div>
         <div class="welcome-text">
-            <h3>Merhaba <strong>{NAME}</strong>,</h3>
-            <br />
+            <!-- <h3>Merhaba <strong>{NAME}</strong>,</h3>
+            <br /> -->
             <p class="info-text">
-                Anatomica'ya kaydolduğunuz için teşekkür ederiz. Hesabınızı
-                etkinleştirmek için aşağıdaki butona tıklayarak bu işlemi sizin
-                yaptığınızı doğrulamanız gerekmektedir. <br /><br /><strong>Eğer bu işlemi siz yapmadıysanız lütfen bu
-                    e-postayı dikkate
-                    almayın.</strong>
-            </p>
-            <a href="{VERIFY_URL}" target="_blank" class="btn-bg" target="_blank"><strong>HESABIMI DOĞRULA</strong></a>
-            <p class="footer-info-text">
-                Eğer "Hesabımı Doğrula" butonu ile ilgili sorun yaşıyorsanız aşağıdaki
-                bağlantıyı kopyalayıp tarayıcınıza yapıştırarak hesabınızı
-                doğrulayabilirsiniz. <br /><br /><a class="default-url" href="{VERIFY_URL}">{VERIFY_URL}</a>
+                Hesap silme talebiniz başarıyla alındı. Size ait tüm veriler sunucularımızdan silindi. Anatomica'yı kullandığınız için teşekkür ederiz. Tekrar görüşmek dileğiyle.
+                <br>
+                <br>
+                <strong>Anatomica Ekibi</strong>
             </p>
         </div>
-        <hr />
         <div class="footer-section">
             <p class="footer-info-text">
                 Bu e-posta

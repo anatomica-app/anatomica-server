@@ -758,6 +758,10 @@ router.delete("/", (req, res) => {
 
             if (rows.affectedRows !== 0) {
                 // User deleted successfully.
+
+                // Send an email to the user.
+                sendAccountDeletedMail(req.body.email);
+
                 return res.json({
                     message: "Your account was deleted successfully.",
                 });
@@ -838,6 +842,38 @@ async function sendWelcomeMail(name, email) {
 
         console.log(json);
     });
+}
+
+async function sendAccountDeletedMail(email) {
+    let mailPath = path.join(__dirname, "../mail_templates/account_deleted.html");
+
+    // Prepare the HTML with replacing the placeholder strings.
+    fs.readFile(mailPath, "utf8", async function (err, data) {
+        if (err) return err.message;
+
+        let result = data.replace(/{EMAIL}/g, email);
+
+        // Send the mail.
+        const transport = nodemailer.createTransport(
+            smtp({
+                host: process.env.MAILJET_SMTP_SERVER,
+                port: 2525,
+                auth: {
+                    user: process.env.MAILJET_API_KEY,
+                    pass: process.env.MAILJET_SECRET_KEY
+                }
+            })
+        );
+
+        const json = await transport.sendMail({
+            from: "Anatomica <" + process.env.MAIL_USER + ">",
+            to: email,
+            subject: "Anatomica | Hesabınız Silindi",
+            html: result,
+        });
+
+        console.log(json);
+    }); 
 }
 
 async function sendPasswordResetMail(id, name, email, token) {
