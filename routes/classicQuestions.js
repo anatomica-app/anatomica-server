@@ -6,6 +6,7 @@ const Joi = require('joi');
 const checkAuth = require('../middleware/check-auth');
 
 const pool = require('../database');
+const responseMessages = require('./responseMessages');
 
 // Fetching all the Classic Questions
 router.post('/', checkAuth, (req, res) => {
@@ -28,24 +29,24 @@ router.post('/', checkAuth, (req, res) => {
         sql = 'CALL fetch_classic_questions_with_joins(?);';
 
         pool.getConnection(function (err, conn) {
-            if (err) return res.status(500).json({ message: err.message });
+            if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
             conn.query(sql, [lang], (error, rows) => {
                 conn.release();
-                if (error) return res.status(500).json({ message: error.message });;
+                if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });;
 
-                res.send(rows[0]);
+                return res.send(rows[0]);
             });
         });
     } else {
         sql = 'CALL fetch_classic_questions(?);';
 
         pool.getConnection(function (err, conn) {
-            if (err) return res.status(500).json({ message: err.message });
+            if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
             conn.query(sql, [lang], (error, rows) => {
                 conn.release();
-                if (error) return res.status(500).json({ message: error.message });;
+                if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });;
 
-                res.send(rows[0]);
+                return res.send(rows[0]);
             });
         });
     }
@@ -68,17 +69,17 @@ router.post('/withId', checkAuth, async (req, res) => {
     const sql = 'CALL fetch_classic_question_by_id(?, ?);';
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.status(500).json({ message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, [req.body.id, lang], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({ message: error.message });
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
             if (!rows[0][0])
                 return res.status(404).json({
-                    message: 'The question was not found on the server.'
+                    message: errorMessages.QUESTION_NOT_FOUND
                 });
             else
-                res.send(rows[0][0]);
+                return res.send(rows[0][0]);
         });
     });
 });
@@ -122,10 +123,10 @@ router.post('/withCategory', checkAuth, async (req, res) => {
     const sql = 'CALL fetch_classic_questions_by_category(?, ?, ?, ?, ?);';
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.status(500).json({ message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, [lang, req.body.category, subcategoryQuery, topicsQuery, req.body.maxQuestionCount], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({ message: error.message });
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
             return res.send(rows[0]);
         });

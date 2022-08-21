@@ -6,16 +6,17 @@ const Joi = require('joi');
 const checkAuth = require('../middleware/check-auth');
 
 const pool = require('../database');
+const responseMessages = require('./responseMessages');
 
 // Fetching all the feedbacks.
 router.get('/', checkAuth, (req, res) => {
     const sql = "CALL fetch_feedbacks();";
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.status(500).json({ message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({ message: error.message });;
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
             return res.send(rows[0]);
         });
@@ -43,14 +44,14 @@ router.post('/', checkAuth, (req, res) => {
     ];
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.status(500).json({ message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, data, (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({ message: error.message });
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
             if (rows[0].insertId === 0) {
                 return res.status(500).json({
-                    message: 'The feedback can not be inserted.'
+                    message: responseMessages.FEEDBACK_CANNOT_CREATED
                 });
             } else {
                 return res.send({

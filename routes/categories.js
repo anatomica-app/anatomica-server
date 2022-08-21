@@ -6,18 +6,19 @@ const Joi = require('joi');
 const checkAuth = require('../middleware/check-auth');
 
 const pool = require('../database');
+const responseMessages = require('./responseMessages');
 
 // Fetching all the categories.
 router.get('/', checkAuth, (req, res) => {
     const sql = 'CALL fetch_all_categories();';
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.status(500).json({ message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({ message: error.message });;
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
-            res.send(rows[0]);
+            return res.send(rows[0]);
         });
     });
 });
@@ -38,12 +39,12 @@ router.post('/', checkAuth, (req, res) => {
     const sql = 'CALL fetch_categories_with_lang(?);';
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.status(500).json({ message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, [lang], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({ message: error.message });
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
-            res.send(rows[0]);
+            return res.send(rows[0]);
         });
     });
 });

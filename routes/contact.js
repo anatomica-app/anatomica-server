@@ -5,6 +5,8 @@ const Joi = require("joi");
 const nodemailer = require("nodemailer");
 const smtp = require("nodemailer-smtp-transport");
 
+const responseMessages = require('./responseMessages');
+
 // Create a contact form.
 router.post("/", (req, res) => {
     const schema = Joi.object({
@@ -17,7 +19,6 @@ router.post("/", (req, res) => {
     const result = schema.validate(req.body);
     if (result.error)
         return res.json({
-            error: true,
             message: result.error.details[0].message,
         });
 
@@ -47,11 +48,8 @@ router.post("/", (req, res) => {
     });
 
     return res.json({
-        error: false,
-        message: 'İletişim talebiniz başarıyla alınmıştır.',
+        message: responseMessages.CONTACT_FORM_CREATED,
     });
-
-    console.log(json);
 });
 
 module.exports = router;

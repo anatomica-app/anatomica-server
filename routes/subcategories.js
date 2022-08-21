@@ -6,18 +6,19 @@ const Joi = require('joi');
 const checkAuth = require('../middleware/check-auth');
 
 const pool = require('../database');
+const responseMessages = require('./responseMessages');
 
 // Fetching all the subcategories.
 router.get('/', checkAuth, (req, res) => {
     const sql = "CALL fetch_all_subcategories();";
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.status(500).json({ message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({ message: error.message });;
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });;
 
-            res.send(rows[0]);
+            return res.send(rows[0]);
         });
     });
 });
@@ -37,12 +38,12 @@ router.post('/', checkAuth, (req, res) => {
 
     const sql = "CALL fetch_subcategories_with_lang(?);";
     pool.getConnection(function (err, conn) {
-        if (err) return res.status(500).json({ message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, [lang], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({ message: error.message });;
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });;
 
-            res.send(rows[0]);
+            return res.send(rows[0]);
         });
     });
 });
@@ -64,10 +65,10 @@ router.post('/withCategory', checkAuth, (req, res) => {
     const sql = "CALL fetch_subcategories_by_category(?, ?);";
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.status(500).json({ message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, [lang, req.body.id], (error, rows) => {
             conn.release();
-            if (error) return res.status(500).json({ message: error.message });
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
             return res.send(rows[0]);
         });
@@ -105,9 +106,9 @@ router.post('/withCategory/withTopics', checkAuth, (req, res) => {
     }
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.status(500).json({ message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, [lang, req.body.category], (error, rows) => {
-            if (error) return res.status(500).json({ message: error.message });
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR});
 
             if (rows[0][0]) {
                 // We should loop through the subcategories.
@@ -129,7 +130,7 @@ router.post('/withCategory/withTopics', checkAuth, (req, res) => {
 
                 conn.query(sql2, [lang, req.body.category], (error2, rows2) => {
                     conn.release();
-                    if (error2) return res.json({ error: true, message: error2.message });
+                    if (error2) return res.json({ message: responseMessages.DATABASE_ERROR });
 
                     if (rows2[0][0]) {
                         // We should loop through the topics.
@@ -153,13 +154,13 @@ router.post('/withCategory/withTopics', checkAuth, (req, res) => {
 
                     } else {
                         return res.status(404).json({
-                            message: 'There is not any topics.'
+                            message: responseMessages.NO_TOPICS_IN_SUBCATEGORY
                         });
                     }
                 });
             } else {
                 return res.status(404).json({
-                    message: 'There isn\'t any subcategory.'
+                    message: responseMessages.NO_SUBCATEGORIES
                 });
             }
         });
@@ -182,9 +183,9 @@ router.post('/withTopics', checkAuth, (req, res) => {
     const sql = "CALL fetch_subcategories_with_lang(?);";
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.status(500).json({ message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, [lang], (error, rows) => {
-            if (error) return res.status(500).json({ message: error.message });
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
             if (rows[0][0]) {
                 // We should loop through the subcategories.
@@ -204,7 +205,7 @@ router.post('/withTopics', checkAuth, (req, res) => {
 
                 conn.query(sql2, [lang], (error2, rows2) => {
                     conn.release();
-                    if (error2) return res.status(500).json({ message: error2.message });
+                    if (error2) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
                     if (rows2[0][0]) {
                         // We should loop through the topics.
@@ -228,13 +229,13 @@ router.post('/withTopics', checkAuth, (req, res) => {
 
                     } else {
                         return res.status(404).json({
-                            message: 'There is not any topics.'
+                            message: responseMessages.NO_TOPICS_IN_SUBCATEGORY
                         });
                     }
                 });
             } else {
                 return res.status(404).json({
-                    message: 'There is not any subcategory.'
+                    message: responseMessages.NO_SUBCATEGORIES
                 });
             }
         });
