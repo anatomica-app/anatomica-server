@@ -20,7 +20,7 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use(cors({
-    origin: ['https://anatomica-app.com', 'https://quiz.api.anatomica-app.com', 'https://quiz.debug.api.anatomica-app.com'],
+    origin: ['https://anatomicaquizapp.com', 'https://api.anatomicaquizapp.com', 'https://debug.api.anatomicaquizapp.com'],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
     preflightContinue: true,
 }));
@@ -34,7 +34,6 @@ const usersRoute = require('./routes/users');
 const feedbacksRoute = require('./routes/feedbacks');
 const reportsRoute = require('./routes/reports');
 const contactRoute = require('./routes/contact');
-const productsRoute = require('./routes/products');
 
 // Limit the payload for 10 MB.
 app.use(express.json({ limit: 10000000 }));
@@ -53,7 +52,6 @@ app.use('/' + apiVersion + '/users', usersRoute);
 app.use('/' + apiVersion + '/feedback', feedbacksRoute);
 app.use('/' + apiVersion + '/report', reportsRoute);
 app.use('/' + apiVersion + '/contact', contactRoute);
-app.use('/' + apiVersion + '/products', productsRoute);
 
 app.listen(port, () => {
     console.log('App listening at port: ' + port);
