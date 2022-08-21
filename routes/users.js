@@ -20,7 +20,7 @@ const responseMessages = require('./responseMessages');
 const storage = new Storage();
 const defaultBucket = storage.bucket('anatomica-storage');
 
-const apiPrefix = 'https://quiz.debug.api.anatomica-app.com/';
+const apiPrefix = `https://${process.env.DOMAIN}/`;
 const apiVersion = 'v1';
 
 // ***** Google OAuth2 Client *****
@@ -786,6 +786,7 @@ async function sendRegisterMail(name, email, id, hash) {
         let result = data.replace(/{NAME}/g, name);
         result = result.replace(/{EMAIL}/g, email);
         result = result.replace(/{VERIFY_URL}/g, verifyUrl);
+        result = result.replace(/{DOMAIN}/g, process.env.DOMAIN)
 
         // Send the mail.
         const transport = nodemailer.createTransport(
@@ -819,6 +820,7 @@ async function sendWelcomeMail(name, email) {
 
         let result = data.replace(/{NAME}/g, name);
         result = result.replace(/{EMAIL}/g, email);
+        result = result.replace(/{DOMAIN}/g, process.env.DOMAIN)
 
         // Send the mail.
         const transport = nodemailer.createTransport(
@@ -851,6 +853,7 @@ async function sendAccountDeletedMail(email) {
         if (err) return err.message;
 
         let result = data.replace(/{EMAIL}/g, email);
+        result = result.replace(/{DOMAIN}/g, process.env.DOMAIN)
 
         // Send the mail.
         const transport = nodemailer.createTransport(
@@ -886,6 +889,7 @@ async function sendPasswordResetMail(id, name, email, token) {
         let result = data.replace(/{RESET_URL}/g, resetURL);
         result = result.replace(/{USER}/g, name);
         result = result.replace(/{EMAIL}/g, email);
+        result = result.replace(/{DOMAIN}/g, process.env.DOMAIN)
 
         // Send the mail.
         const transport = nodemailer.createTransport(
