@@ -4,25 +4,46 @@ const router = express.Router();
 const Joi = require('joi');
 
 const checkAuth = require('../middleware/check-auth');
-const checkPrivilege = require('../middleware/check-privilege');
-const checkCategoryAccess = require('../middleware/check-category-access');
 
 const pool = require('../database');
-const constants = require('./constants');
-const errorCodes = require('./errors');
-const privileges = require('../privileges');
+const responseMessages = require('./responseMessages');
 
 // Fetching all the subcategories.
 router.get('/', checkAuth, (req, res) => {
-    const sql = "SELECT * FROM quiz_subcategory";
+    const sql = "CALL fetch_all_subcategories();";
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.json({ error: true, message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, (error, rows) => {
             conn.release();
-            if (error) return res.json({ error: true, message: error.message });;
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });;
 
-            res.json({ error: false, data: rows });
+            return res.send(rows[0]);
+        });
+    });
+});
+
+// Fetching all the subcategories with language.
+router.post('/', checkAuth, (req, res) => {
+    const schema = Joi.object({
+        lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
+    });
+
+    // Change the language if there is a lang variable in request body.
+    let lang = 1 // Default language is Turkish --> 1
+    if (req.body.lang) lang = req.body.lang;
+
+    const result = schema.validate(req.body);
+    if (result.error) return res.status(400).json({ message: result.error.details[0].message });
+
+    const sql = "CALL fetch_subcategories_with_lang(?);";
+    pool.getConnection(function (err, conn) {
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+        conn.query(sql, [lang], (error, rows) => {
+            conn.release();
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });;
+
+            return res.send(rows[0]);
         });
     });
 });
@@ -39,23 +60,23 @@ router.post('/withCategory', checkAuth, (req, res) => {
     if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
-    if (result.error) return res.json({ error: true, message: result.error.details[0].message });
+    if (result.error) return res.status(400).json({ message: result.error.details[0].message });
 
-    const sql = "SELECT quiz_category_subcategories.id as id, quiz_category_subcategories.category as category, quiz_subcategory.`name` as name, quiz_category_subcategories.classic as classic, quiz_category_subcategories.image as image, quiz_category_subcategories.date_added as date_added FROM quiz_category_subcategories INNER JOIN quiz_subcategory on quiz_category_subcategories.subcategory = quiz_subcategory.id WHERE lang = ? and category = ?;";
+    const sql = "CALL fetch_subcategories_by_category(?, ?);";
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.json({ error: true, message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, [lang, req.body.id], (error, rows) => {
             conn.release();
-            if (error) return res.json({ error: true, message: error.message });
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
-            return res.json({ error: false, data: rows });
+            return res.send(rows[0]);
         });
     });
 });
 
 // Fetching all the subcategories with category and the relevant topics to it.
-router.post('/withCategory/withTopics', checkAuth, checkCategoryAccess, (req, res) => {
+router.post('/withCategory/withTopics', checkAuth, (req, res) => {
     const schema = Joi.object({
         user: Joi.number().integer(), // User ID
         sku: Joi.string(), // SKU of the category
@@ -69,80 +90,77 @@ router.post('/withCategory/withTopics', checkAuth, checkCategoryAccess, (req, re
     if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
-    if (result.error) return res.json({ error: true, message: result.error.details[0].message });
+    if (result.error) return res.status(400).json({ message: result.error.details[0].message });
 
     let sql = "";
 
     switch (req.body.type) {
         case 1:
             // Pictured questions.
-            sql = "SELECT quiz_subcategory.id as id, quiz_category_subcategories.category as category, quiz_subcategory.name as name, quiz_category_subcategories.classic as classic, quiz_category_subcategories.image as image, quiz_category_subcategories.date_added as date_added FROM quiz_category_subcategories INNER JOIN quiz_subcategory on quiz_category_subcategories.subcategory = quiz_subcategory.id WHERE lang = ? and category = ? and image = 1;";
+            sql = "CALL fetch_subcategories_by_category_for_pictured(?, ?);";
             break;
         case 2:
             // Classic questions.
-            sql = "SELECT quiz_subcategory.id as id, quiz_category_subcategories.category as category, quiz_subcategory.name as name, quiz_category_subcategories.classic as classic, quiz_category_subcategories.image as image, quiz_category_subcategories.date_added as date_added FROM quiz_category_subcategories INNER JOIN quiz_subcategory on quiz_category_subcategories.subcategory = quiz_subcategory.id WHERE lang = ? and category = ? and classic = 1;";
+            sql = "CALL fetch_subcategories_by_category_for_classic(?, ?);";
             break;
     }
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.json({ error: true, message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, [lang, req.body.category], (error, rows) => {
-            if (error) return res.json({ error: true, message: error.message });
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR});
 
-            if (rows[0]) {
+            if (rows[0][0]) {
                 // We should loop through the subcategories.
-
                 let subcategoryArray = [];
+                let subcategoryResults = rows[0];
 
-                for (let i = 0; i < rows.length; i++) {
+                for (let i = 0; i < subcategoryResults.length; i++) {
                     subcategoryArray[i] = {
-                        id: rows[i].id,
-                        lang: rows[i].lang,
-                        name: rows[i].name,
+                        id: subcategoryResults[i].id,
+                        name: subcategoryResults[i].name,
                         topics: [],
-                        image: rows[i].image,
-                        classic: rows[i].classic,
-                        date_added: rows[i].date_added,
+                        isPictured: subcategoryResults[i].isPictured,
+                        isClassic: subcategoryResults[i].isClassic,
+                        dateAdded: subcategoryResults[i].dateAdded,
                     };
                 }
 
-                let sql2 = "SELECT quiz_topic.id, quiz_topic.lang, quiz_topic.subcategory, quiz_topic.name, quiz_category_topics.classic, quiz_category_topics.image, quiz_topic.date_added FROM quiz_category_topics INNER JOIN quiz_topic ON quiz_category_topics.topic = quiz_topic.id WHERE lang = ? and category = ?;";
+                let sql2 = "CALL fetch_topics_by_category(?, ?);";
 
                 conn.query(sql2, [lang, req.body.category], (error2, rows2) => {
                     conn.release();
-                    if (error2) return res.json({ error: true, message: error2.message });
+                    if (error2) return res.json({ message: responseMessages.DATABASE_ERROR });
 
-                    if (rows2[0]) {
+                    if (rows2[0][0]) {
                         // We should loop through the topics.
-                        for (let i = 0; i < rows2.length; i++) {
+                        let topicResults = rows2[0];
+                        for (let i = 0; i < topicResults.length; i++) {
                             for (let j = 0; j < subcategoryArray.length; j++) {
-                                if (subcategoryArray[j].id == rows2[i].subcategory) {
+                                if (subcategoryArray[j].id == topicResults[i].subcategory) {
                                     subcategoryArray[j].topics.push({
-                                        id: rows2[i].id,
-                                        lang: rows2[i].lang,
-                                        subcategory: rows2[i].subcategory,
-                                        name: rows2[i].name,
-                                        classic: rows2[i].classic,
-                                        image: rows2[i].image,
-                                        date_added: rows2[i].date_added,
+                                        id: topicResults[i].id,
+                                        subcategory: topicResults[i].subcategory,
+                                        name: topicResults[i].name,
+                                        isClassic: topicResults[i].isClassic,
+                                        isPictured: topicResults[i].isPictured,
+                                        dateAdded: topicResults[i].dateAdded,
                                     })
                                 }
                             }
                         }
 
-                        return res.json({ error: false, data: subcategoryArray });
+                        return res.send(subcategoryArray);
 
                     } else {
-                        return res.json({
-                            error: true,
-                            message: 'There is not any topics.'
+                        return res.status(404).json({
+                            message: responseMessages.NO_TOPICS_IN_SUBCATEGORY
                         });
                     }
                 });
             } else {
-                return res.json({
-                    error: true,
-                    message: 'There isn\'t any subcategory.'
+                return res.status(404).json({
+                    message: responseMessages.NO_SUBCATEGORIES
                 });
             }
         });
@@ -160,168 +178,66 @@ router.post('/withTopics', checkAuth, (req, res) => {
     if (req.body.lang) lang = req.body.lang;
 
     const result = schema.validate(req.body);
-    if (result.error) return res.json({ error: true, message: result.error.details[0].message });
+    if (result.error) return res.status(400).json({ message: result.error.details[0].message });
 
-    const sql = "SELECT * FROM quiz_subcategory WHERE lang = ?";
+    const sql = "CALL fetch_subcategories_with_lang(?);";
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.json({ error: true, message: err.message });
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
         conn.query(sql, [lang], (error, rows) => {
-            if (error) return res.json({ error: true, message: error.message });
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
-            if (rows[0]) {
+            if (rows[0][0]) {
                 // We should loop through the subcategories.
-
                 let subcategoryArray = [];
+                let subcategoryResults = rows[0];
 
-                for (let i = 0; i < rows.length; i++) {
+                for (let i = 0; i < subcategoryResults.length; i++) {
                     subcategoryArray[i] = {
-                        id: rows[i].id,
-                        lang: rows[i].lang,
-                        name: rows[i].name,
+                        id: subcategoryResults[i].id,
+                        name: subcategoryResults[i].name,
                         topics: [],
-                        image: rows[i].image,
-                        classic: rows[i].classic,
-                        date_added: rows[i].date_added,
+                        dateAdded: subcategoryResults[i].dateAdded,
                     };
                 }
 
-                const sql2 = "SELECT * FROM quiz_topic WHERE lang = ?";
+                const sql2 = "CALL fetch_all_topics(?);";
 
                 conn.query(sql2, [lang], (error2, rows2) => {
                     conn.release();
-                    if (error2) return res.json({ error: true, message: error2.message });
+                    if (error2) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
-                    if (rows2[0]) {
+                    if (rows2[0][0]) {
                         // We should loop through the topics.
-                        let subcategoryId = rows2[0].subcategory;
-
-                        for (let i = 0; i < rows2.length; i++) {
+                        let topicResults = rows2[0];
+                        for (let i = 0; i < topicResults.length; i++) {
                             for (let j = 0; j < subcategoryArray.length; j++) {
-                                if (subcategoryArray[j].id == rows2[i].subcategory) {
+                                if (subcategoryArray[j].id == topicResults[i].subcategory) {
                                     subcategoryArray[j].topics.push({
-                                        id: rows2[i].id,
-                                        lang: rows2[i].lang,
-                                        subcategory: rows2[i].subcategory,
-                                        name: rows2[i].name,
-                                        date_added: rows2[i].date_added,
+                                        id: topicResults[i].id,
+                                        subcategory: topicResults[i].subcategory,
+                                        name: topicResults[i].name,
+                                        isClassic: topicResults[i].isClassic,
+                                        isPictured: topicResults[i].isPictured,
+                                        dateAdded: topicResults[i].dateAddeds,
                                     })
                                 }
                             }
                         }
 
-                        return res.json({ error: false, data: subcategoryArray });
+                        return res.send(subcategoryArray);
 
                     } else {
-                        return res.json({
-                            error: true,
-                            message: 'There is not any topics.'
+                        return res.status(404).json({
+                            message: responseMessages.NO_TOPICS_IN_SUBCATEGORY
                         });
                     }
                 });
-
-                // return res.json({error: false, data: subcategoryArray});
             } else {
-                return res.json({
-                    error: true,
-                    message: 'There is not any subcategory.'
+                return res.status(404).json({
+                    message: responseMessages.NO_SUBCATEGORIES
                 });
             }
-        });
-    });
-});
-
-// Create a new subcategory.
-router.post('/', checkAuth, checkPrivilege(privileges['anatomica.add.subcategory']), (req, res) => {
-    const schema = Joi.object({
-        name: Joi.string().required(),
-        category: Joi.number().integer().required()
-    });
-
-    const result = schema.validate(req.body);
-    if (result.error) return res.json({ error: true, message: result.error.details[0].message });
-
-    const sql = "INSERT INTO quiz_subcategory (name, category) VALUES (?,?)";
-
-    pool.getConnection(function (err, conn) {
-        if (err) return res.json({ error: true, message: err.message });
-        conn.query(sql, [req.body.name, req.body.category], (error, rows) => {
-            conn.release();
-            if (error) return res.json({ error: true, message: error.message });
-
-            if (rows['insertId'] === 0) {
-                return res.json({
-                    error: true,
-                    code: errorCodes.SUBCATEGORY_CAN_NOT_BE_CREATED,
-                    message: 'The subcategory can not be created.'
-                });
-            } else {
-                return res.json({ error: false, data: rows['insertId'] });
-            }
-        });
-    });
-});
-
-// Update a subcategory.
-router.put('/', checkAuth, checkPrivilege(privileges['anatomica.update.subcategory']), (req, res) => {
-    const schema = Joi.object({
-        id: Joi.number().integer().required(),
-        name: Joi.string().required(),
-        category: Joi.number().integer().required()
-    });
-
-    const result = schema.validate(req.body);
-    if (result.error) return res.json({ error: true, message: result.error.details[0].message });
-
-    const sql = "UPDATE quiz_subcategory SET name = ?, category = ? WHERE id = ?";
-    const data = [
-        req.body.name,
-        req.body.category,
-        req.body.id
-    ]
-
-    pool.getConnection(function (err, conn) {
-        if (err) return res.json({ error: true, message: err.message });
-        conn.query(sql, data, (error, rows) => {
-            conn.release();
-            if (error) return res.json({ error: true, message: error.message });
-
-            if (rows['affectedRows'] === 0) {
-                return res.json({
-                    error: true,
-                    code: errorCodes.SUBCATEGORY_CAN_NOT_BE_UPDATED,
-                    message: 'The subcategory can not be updated.'
-                });
-            } else {
-                return res.json({ error: false, data: data });
-            }
-        });
-    });
-});
-
-// Delete a category.
-router.delete('/', checkAuth, checkPrivilege(privileges['anatomica.delete.subcategory']), async (req, res) => {
-    const schema = Joi.object({
-        id: Joi.number().integer().required()
-    });
-
-    const result = schema.validate(req.body);
-    if (result.error) return res.json({ error: true, message: result.error.details[0].message });
-
-    const sql = "DELETE FROM quiz_subcategory WHERE id = ?";
-
-    pool.getConnection(function (err, conn) {
-        if (err) return res.json({ error: true, message: err.message });
-        conn.query(sql, [req.body.id], (error, rows) => {
-            conn.release();
-            if (error) return res.json({ error: true, message: error.message });
-
-            if (rows['affectedRows'] === 0) return res.json({
-                error: true,
-                code: errorCodes.SUBCATEGORY_NOT_FOUND,
-                message: 'The subcategory with the given id was not fount on the server.'
-            });
-            else return res.json({ error: false, id: req.body.id });
         });
     });
 });

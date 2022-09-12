@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const errorCodes = require('../routes/errors');
 
 module.exports = (req, res, next) => {
     try {
@@ -8,9 +7,7 @@ module.exports = (req, res, next) => {
         req.userData = decoded;
         next();
     } catch (error) {
-        return res.json({
-            error: true,
-            code: errorCodes.INVALID_TOKEN,
+        return res.status(401).json({
             message: 'Geçersiz oturum.'
         });
     }
