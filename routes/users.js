@@ -20,7 +20,7 @@ const responseMessages = require('./responseMessages');
 const storage = new Storage();
 const defaultBucket = storage.bucket('anatomica-storage');
 
-const apiPrefix = `https://${process.env.DOMAIN}/`;
+const apiPrefix = `https://api.${process.env.DOMAIN}/`;
 const apiVersion = 'v1';
 
 // ***** Google OAuth2 Client *****
@@ -175,7 +175,7 @@ router.post("/apple", (req, res) => {
     if (result.error)
         return res.status(400).json({ message: result.error.details[0].message });
 
-    const sql = "SELECT * FROM users WHERE apple_id = ? LIMIT 1";
+    const sql = "CALL fetch_user_by_apple_id(?);";
 
     pool.getConnection(function (err, conn) {
         if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
@@ -194,7 +194,7 @@ router.post("/apple", (req, res) => {
                     });
                 }
             } else {
-                let user = rows[0];
+                let user = rows[0][0];
 
                 const token = jwt.sign(
                     {
@@ -953,7 +953,7 @@ function createGoogleUser(name, lastName, email, pp, googleId, res) {
 
                 sendWelcomeMail(name, email);
 
-                const fetchUserSql = 'CALL fetch_user_by_email(?);'
+                const fetchUserSql = 'CALL fetch_user_by_email(?);';
 
                 pool.getConnection(function (err2, conn2) {
                     if (err2) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
@@ -980,21 +980,22 @@ function createGoogleUser(name, lastName, email, pp, googleId, res) {
     });
 }
 
-function createAppleUser(name, surname, email, apple_id, res) {
+function createAppleUser(name, lastName, email, apple_id, res) {
     const sql =
-        "INSERT INTO users (name, surname, email, hash, active, account_type, apple_id) VALUES (?,?,?,?,1,?,?)";
+        "CALL create_apple_user(?,?,?,?,1,?,?);";
     const hash = crypto.createHash("md5").update(email).digest("hex");
 
     pool.getConnection(function (err, conn) {
-        if (err) return res.json({ message: responseMessages.DATABASE_ERROR });
-        conn.query(sql, [name, surname, email, hash, constants.ACCOUNT_APPLE, apple_id], (error, rows) => {
+        if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+        conn.query(sql, [name, lastName, email, hash, constants.ACCOUNT_APPLE, apple_id], (error, rows) => {
             conn.release();
-            if (error) return res.json({ message: responseMessages.DATABASE_ERROR });
+            if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+            const result = rows[0][0];
 
-            if (rows['insertId'] !== 0) {
+            if (result.insertId !== 0) {
                 const token = jwt.sign(
                     {
-                        id: rows["insertId"],
+                        id: result.insertId,
                         email: email
                     },
                     process.env.JWT_PRIVATE_KEY,
@@ -1005,9 +1006,26 @@ function createAppleUser(name, surname, email, apple_id, res) {
 
                 sendWelcomeMail(name, email);
 
-                return res.json({ id: rows["insertId"], token: token });
+                const fetchUserSql = 'CALL fetch_user_by_email(?);';
+
+                pool.getConnection(function (err2, conn2) {
+                    if (err2) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+                    conn2.query(fetchUserSql, [email], (error2, rows2) => {
+                        conn2.release();
+                        if (error2) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+
+                        const user = rows2[0][0];
+
+                        if (!user) {
+                            return res.status(500).json({message: responseMessages.USER_INFO_CANNOT_RETRIEVED});
+                        }
+
+                        user.token = token;
+                        return res.send(user);
+                    })
+                });
             } else {
-                return res.json({
+                return res.status(500).json({
                     message: responseMessages.USER_CANNOT_BE_CREATED
                 });
             }

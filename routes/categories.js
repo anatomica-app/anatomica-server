@@ -8,6 +8,8 @@ const checkAuth = require('../middleware/check-auth');
 const pool = require('../database');
 const responseMessages = require('./responseMessages');
 
+const storageUrlPrefix = 'https://storage.googleapis.com/anatomica-storage/quiz_category_icons/';
+
 // Fetching all the categories.
 router.get('/', checkAuth, (req, res) => {
     const sql = 'CALL fetch_all_categories();';
@@ -18,7 +20,12 @@ router.get('/', checkAuth, (req, res) => {
             conn.release();
             if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
-            return res.send(rows[0]);
+            let categories = rows[0];
+            categories.forEach(element => {
+                element.icon = storageUrlPrefix + element.icon
+            });
+
+            return res.send(categories);
         });
     });
 });
@@ -26,7 +33,8 @@ router.get('/', checkAuth, (req, res) => {
 // Fetching all the categories with language.
 router.post('/', checkAuth, (req, res) => {
     const schema = Joi.object({
-        lang: Joi.number().integer().default(1) // Default language is Turkish --> 1
+        lang: Joi.number().integer().default(1), // Default language is Turkish --> 1
+        isPaid: Joi.boolean().required(),
     });
 
     // Change the language if there is a lang variable in request body.
@@ -36,7 +44,7 @@ router.post('/', checkAuth, (req, res) => {
     const result = schema.validate(req.body);
     if (result.error) return res.status(400).json({ message: result.error.details[0].message });
 
-    const sql = 'CALL fetch_categories_with_lang(?);';
+    let sql = req.body.isPaid ? 'CALL fetch_paid_categories(?);' : 'CALL fetch_free_categories(?);';
 
     pool.getConnection(function (err, conn) {
         if (err) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
@@ -44,7 +52,12 @@ router.post('/', checkAuth, (req, res) => {
             conn.release();
             if (error) return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
 
-            return res.send(rows[0]);
+            let categories = rows[0];
+            categories.forEach(element => {
+                element.icon = storageUrlPrefix + element.icon
+            });
+
+            return res.send(categories);
         });
     });
 });

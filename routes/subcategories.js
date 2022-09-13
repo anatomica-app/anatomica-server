@@ -149,14 +149,8 @@ router.post('/withCategory/withTopics', checkAuth, (req, res) => {
                                 }
                             }
                         }
-
-                        return res.send(subcategoryArray);
-
-                    } else {
-                        return res.status(404).json({
-                            message: responseMessages.NO_TOPICS_IN_SUBCATEGORY
-                        });
                     }
+                    return res.send(subcategoryArray);
                 });
             } else {
                 return res.status(404).json({
