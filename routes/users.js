@@ -917,7 +917,7 @@ async function sendPasswordResetMail(id, name, email, token) {
 async function verifyGoogleAccount(idToken) {
     const ticket = await client.verifyIdToken({
         idToken: idToken,
-        audience: process.env.GOOGLE_OAUTH2_AUDIENCE_CLIENT_ID,
+        requiredAudience: process.env.GOOGLE_OAUTH2_AUDIENCE_CLIENT_ID,
     });
     const payload = ticket.getPayload();
 
