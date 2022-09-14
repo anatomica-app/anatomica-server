@@ -1,4 +1,4 @@
-const apiPrefix = 'https://quiz.debug.api.anatomica-app.com/';
+const apiPrefix = 'https://anatomica-qoj6mvglfq-ew.a.run.app/';
 const apiVersion = 'v1';
 
 $(document).ready(function () {
