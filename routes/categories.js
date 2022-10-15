@@ -39,7 +39,6 @@ router.get('/', checkAuth, (req, res) => {
 router.post('/', checkAuth, (req, res) => {
   const schema = Joi.object({
     lang: Joi.number().integer().default(1), // Default language is Turkish --> 1
-    isPaid: Joi.boolean().required(),
   });
 
   // Change the language if there is a lang variable in request body.
@@ -50,9 +49,7 @@ router.post('/', checkAuth, (req, res) => {
   if (result.error)
     return res.status(400).json({ message: result.error.details[0].message });
 
-  let sql = req.body.isPaid
-    ? 'CALL fetch_paid_categories(?);'
-    : 'CALL fetch_free_categories(?);';
+  let sql = 'CALL fetch_categories_with_lang(?);';
 
   pool.getConnection(function (err, conn) {
     if (err)
