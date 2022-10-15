@@ -42,7 +42,7 @@ router.post("/", (req, res) => {
 
     const json = transport.sendMail({
         from: "Anatomica <" + process.env.MAIL_USER + ">",
-        to: "info@anatomica-app.com",
+        to: "support@anatomicaquizapp.com",
         subject: req.body.subject,
         html: message,
     });
