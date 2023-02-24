@@ -34,6 +34,7 @@ app.use(
 const categoriesRoute = require('./routes/categories');
 const subcategoriesRoute = require('./routes/subcategories');
 const topicsRoute = require('./routes/topics');
+const questionsRoute = require('./routes/questions');
 const classicQuestionsroute = require('./routes/classicQuestions');
 const imageQuestionsroute = require('./routes/imageQuestions');
 const usersRoute = require('./routes/users');
@@ -52,6 +53,7 @@ app.use(express.static('public'));
 app.use('/' + apiVersion + '/quiz/category', categoriesRoute);
 app.use('/' + apiVersion + '/quiz/subcategory', subcategoriesRoute);
 app.use('/' + apiVersion + '/quiz/topics', topicsRoute);
+app.use('/' + apiVersion + '/quiz/questions', questionsRoute);
 app.use('/' + apiVersion + '/quiz/classic', classicQuestionsroute);
 app.use('/' + apiVersion + '/quiz/image', imageQuestionsroute);
 app.use('/' + apiVersion + '/users', usersRoute);
