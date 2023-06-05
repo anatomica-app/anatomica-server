@@ -7,4 +7,4 @@ SubscriptionKey_4M4TQD83BT.p8
 deploy.sh
 deploy-debug.sh
 .vscode/launch.json
-
+.idea
