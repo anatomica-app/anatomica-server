@@ -6,7 +6,7 @@ const Joi = require('joi');
 const checkAuth = require('../middlewares/check-auth');
 
 const pool = require('../utilities/database');
-const responseMessages = require('./responseMessages');
+const responseMessages = require('../utilities/responseMessages');
 
 const subcategoryController = require('../controllers/subcategory');
 

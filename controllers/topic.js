@@ -1,6 +1,6 @@
 const Joi = require('joi');
 const pool = require('../utilities/database');
-const responseMessages = require('../routes/responseMessages');
+const responseMessages = require('../utilities/responseMessages');
 
 exports.getAllTopics = (req, res) => {
   const schema = Joi.object({

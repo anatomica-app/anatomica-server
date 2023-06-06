@@ -1,7 +1,7 @@
 const Joi = require('joi');
 const nodemailer = require('nodemailer');
 const smtp = require('nodemailer-smtp-transport');
-const responseMessages = require('../routes/responseMessages');
+const responseMessages = require('../utilities/responseMessages');
 
 exports.postContactForm = (req, res) => {
   const schema = Joi.object({

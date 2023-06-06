@@ -1,5 +1,5 @@
 const pool = require('../utilities/database');
-const responseMessages = require('../routes/responseMessages');
+const responseMessages = require('../utilities/responseMessages');
 const Joi = require('joi');
 
 exports.getAllSubcategories = (req, res) => {

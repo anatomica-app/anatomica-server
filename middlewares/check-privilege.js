@@ -1,5 +1,5 @@
 const pool = require('../utilities/database');
-const errorCodes = require('../routes/errors');
+const errorCodes = require('../utilities/errors');
 
 module.exports = (permission) => {
   return (req, res, next) => {
