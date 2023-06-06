@@ -1,4 +1,6 @@
 const express = require('express');
+const swaggerJsDoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 process.env.NODE_ENV !== 'production' ? require('dotenv').config() : null;
@@ -19,6 +21,40 @@ const apiVersion = 'v1';
 
 // Rate Limiter Middleware for protecting against DDoS attacks.
 app.set('trust proxy', 1);
+
+const swaggerOptions = {
+  swaggerDefinition: {
+    openapi: '3.0.0',
+    info: {
+      title: "Anatomica API",
+      description: "Anatomica REST Api",
+      version: '2.0.0',
+      contact: {
+        name: "Ahmet Özrahat",
+      },
+      servers: ["http://localhost:8080"]
+    },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        }
+      }
+    },
+    security: [{
+      bearerAuth: []
+    }],
+  },
+  apis: [
+    "./routes/*.js",
+  ]
+};
+
+const swaggerDocs = swaggerJsDoc(swaggerOptions);
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
