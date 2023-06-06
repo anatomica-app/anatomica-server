@@ -1,4 +1,4 @@
-const pool = require('../database');
+const pool = require('../utilities/database');
 
 module.exports = (req, res, next) => {
   const category = req.body.category;

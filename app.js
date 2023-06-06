@@ -31,14 +31,14 @@ app.use(
   })
 );
 
-const categoriesRoute = require('./routes/categories');
-const subcategoriesRoute = require('./routes/subcategories');
-const topicsRoute = require('./routes/topics');
-const classicQuestionsroute = require('./routes/classicQuestions');
-const imageQuestionsroute = require('./routes/imageQuestions');
-const usersRoute = require('./routes/users');
+const categoriesRoute = require('./routes/category');
+const subcategoriesRoute = require('./routes/subcategory');
+const topicsRoute = require('./routes/topic');
+const classicQuestionsroute = require('./routes/classicQuestion');
+const imageQuestionsroute = require('./routes/imageQuestion');
+const usersRoute = require('./routes/user');
 const feedbacksRoute = require('./routes/feedbacks');
-const reportsRoute = require('./routes/reports');
+const reportsRoute = require('./routes/report');
 const contactRoute = require('./routes/contact');
 
 // Limit the payload for 10 MB.
