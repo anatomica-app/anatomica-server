@@ -1,33 +1,13 @@
-const express = require('express');
-const router = express.Router();
-
 const Joi = require('joi');
-const crypto = require('crypto');
+const pool = require('../utilities/database');
+const responseMessages = require('../utilities/responseMessages');
+const constants = require('../utilities/constants');
 const bcrypt = require('bcrypt');
-const nodemailer = require('nodemailer');
-const smtp = require('nodemailer-smtp-transport');
-const { Storage } = require('@google-cloud/storage');
-const { OAuth2Client } = require('google-auth-library');
-const fs = require('fs');
-const path = require('path');
 const jwt = require('jsonwebtoken');
-const pool = require('../database');
-const constants = require('./constants');
-const errorCodes = require('./errors');
-const responseMessages = require('./responseMessages');
+const path = require('path');
+const fs = require('fs');
 
-// ***** Google Cloud Storage *****
-const storage = new Storage();
-const defaultBucket = storage.bucket('anatomica-storage');
-
-const apiPrefix = `https://api.${process.env.DOMAIN}/`;
-const apiVersion = 'v1';
-
-// ***** Google OAuth2 Client *****
-const client = new OAuth2Client(process.env.GOOGLE_OAUTH2_CLIENT_ID);
-
-// Login user with credentials.
-router.post('/login', async (req, res) => {
+exports.postLogin = async (req, res) => {
   const schema = Joi.object({
     email: Joi.string().min(3).max(64).required(),
     password: Joi.string().max(128).required(),
@@ -101,10 +81,9 @@ router.post('/login', async (req, res) => {
       }
     });
   });
-});
+}
 
-// Login user with Google.
-router.post('/google', async (req, res) => {
+exports.postLoginWithGoogle = async (req, res) => {
   const schema = Joi.object({
     idToken: Joi.string().required(),
   });
@@ -179,10 +158,9 @@ router.post('/google', async (req, res) => {
       }
     });
   });
-});
+}
 
-// Login user with Apple.
-router.post('/apple', (req, res) => {
+exports.postLoginWithApple = (req, res) => {
   const schema = Joi.object({
     name: Joi.string().min(3).max(64).allow(null),
     lastName: Joi.string().max(64).allow(null),
@@ -242,10 +220,9 @@ router.post('/apple', (req, res) => {
       }
     });
   });
-});
+}
 
-// Create a user with default configuration.
-router.post('/', (req, res) => {
+exports.postUser = (req, res) => {
   const schema = Joi.object({
     name: Joi.string().min(3).max(64).required(),
     lastName: Joi.string().max(64).required(),
@@ -331,10 +308,9 @@ router.post('/', (req, res) => {
       }
     });
   });
-});
+}
 
-// Change user name.
-router.put('/changeUserName/', async (req, res) => {
+exports.putChangeUsername = async (req, res) => {
   const schema = Joi.object({
     id: Joi.number().integer().required(),
     name: Joi.string().required(),
@@ -345,10 +321,9 @@ router.put('/changeUserName/', async (req, res) => {
     return res.json({ error: true, message: result.error.details[0].message });
 
   await canChangeUserName(req.body.id, req.body.name, res);
-});
+}
 
-// Change profile picture.
-router.put('/changeProfilePicture', async (req, res) => {
+exports.putChangeProfilePicture = async (req, res) => {
   const schema = Joi.object({
     id: Joi.number().integer().required(),
     image: Joi.string().base64().required(),
@@ -446,10 +421,9 @@ router.put('/changeProfilePicture', async (req, res) => {
       }
     });
   });
-});
+}
 
-// Send verify email again.
-router.post('/sendVerificationEmail', (req, res) => {
+exports.postSendVerificationMail = (req, res) => {
   const schema = Joi.object({
     email: Joi.string().min(3).max(64).required(),
   });
@@ -522,10 +496,9 @@ router.post('/sendVerificationEmail', (req, res) => {
       }
     });
   });
-});
+}
 
-// Verify mail address.
-router.get('/verify/:id/:hash', (req, res) => {
+exports.getVerifyMail = (req, res) => {
   try {
     const token = req.params.hash;
     const decoded = jwt.verify(token, process.env.JWT_PRIVATE_KEY);
@@ -577,10 +550,9 @@ router.get('/verify/:id/:hash', (req, res) => {
       return res.end();
     });
   }
-});
+}
 
-// Send password reset request.
-router.post('/password/resetMail/', (req, res) => {
+exports.postResetMail = (req, res) => {
   const schema = Joi.object({
     email: Joi.string().min(3).max(64).required(),
   });
@@ -664,10 +636,9 @@ router.post('/password/resetMail/', (req, res) => {
       }
     });
   });
-});
+}
 
-// Reset password page.
-router.get('/password/reset/:id/:token', (req, res) => {
+exports.getResetPage = (req, res) => {
   // Let's first check if the token is valid.
   try {
     const decoded = jwt.verify(
@@ -790,10 +761,9 @@ router.get('/password/reset/:id/:token', (req, res) => {
       }
     );
   }
-});
+}
 
-// Reset password.
-router.put('/password/update', (req, res) => {
+exports.putResetPassword = (req, res) => {
   const schema = Joi.object({
     id: Joi.number().required(),
     token: Joi.string().required(),
@@ -875,7 +845,7 @@ router.put('/password/update', (req, res) => {
                             // Password changed successfully.
                             return res.json({
                               message:
-                                responseMessages.PASSWORD_CHANGED_SUCCESSFULLY,
+                              responseMessages.PASSWORD_CHANGED_SUCCESSFULLY,
                             });
                           } else {
                             return res.status(500).json({
@@ -899,10 +869,9 @@ router.put('/password/update', (req, res) => {
       }
     });
   });
-});
+}
 
-// Delete account.
-router.delete('/', (req, res) => {
+exports.deleteUser = (req, res) => {
   const schema = Joi.object({
     id: Joi.number().integer().required(),
     email: Joi.string().min(3).max(64).required(),
@@ -940,7 +909,7 @@ router.delete('/', (req, res) => {
       });
     });
   });
-});
+}
 
 // ***** Helper Functions *****
 async function sendRegisterMail(name, email, id, hash) {
@@ -1257,7 +1226,7 @@ async function canChangeUserName(id, name, res) {
           // User can't change his/her name.
           return res.json({
             message:
-              responseMessages.USER_NAME_CANNOT_CHANGED_MORE_THAN_ONCE_MONTH,
+            responseMessages.USER_NAME_CANNOT_CHANGED_MORE_THAN_ONCE_MONTH,
           });
         } else {
           changeUserName(id, name, res);
@@ -1280,5 +1249,3 @@ async function changeUserName(id, name, res) {
     });
   });
 }
-
-module.exports = router;
