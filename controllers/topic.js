@@ -1,15 +1,8 @@
-const express = require('express');
-const router = express.Router();
-
 const Joi = require('joi');
-
-const checkAuth = require('../middlewares/check-auth');
-
 const pool = require('../utilities/database');
-const responseMessages = require('./responseMessages');
+const responseMessages = require('../routes/responseMessages');
 
-// Fetching all the topics.
-router.post('/', checkAuth, (req, res) => {
+exports.getAllTopics = (req, res) => {
   const schema = Joi.object({
     lang: Joi.number().integer().default(1), // Default language is Turkish --> 1
   });
@@ -37,10 +30,9 @@ router.post('/', checkAuth, (req, res) => {
       res.send(rows[0]);
     });
   });
-});
+}
 
-// Fetching all the topics with the given subcategory.
-router.post('/withCategory', checkAuth, (req, res) => {
+exports.getAllTopicsWithGivenSubcategory = (req, res) => {
   const schema = Joi.object({
     id: Joi.number().integer().required(),
     lang: Joi.number().integer().default(1), // Default language is Turkish --> 1
@@ -69,6 +61,4 @@ router.post('/withCategory', checkAuth, (req, res) => {
       return res.send(rows[0]);
     });
   });
-});
-
-module.exports = router;
+}
