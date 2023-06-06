@@ -3,9 +3,9 @@ const router = express.Router();
 
 const Joi = require('joi');
 
-const checkAuth = require('../middleware/check-auth');
+const checkAuth = require('../middlewares/check-auth');
 
-const pool = require('../database');
+const pool = require('../utilities/database');
 
 // Create a new report.
 router.post('/', checkAuth, (req, res) => {

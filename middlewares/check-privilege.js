@@ -1,4 +1,4 @@
-const pool = require('../database');
+const pool = require('../utilities/database');
 const errorCodes = require('../routes/errors');
 
 module.exports = (permission) => {

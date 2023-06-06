@@ -1,15 +1,9 @@
-const express = require('express');
-const router = express.Router();
-
 const Joi = require('joi');
+const pool = require('../utilities/database');
+const responseMessages = require('../routes/responseMessages');
 
-const checkAuth = require('../middleware/check-auth');
-
-const pool = require('../database');
-const responseMessages = require('./responseMessages');
-
-// Fetching all the Classic Questions
-router.post('/', checkAuth, (req, res) => {
+/** Classic Questions */
+exports.getAllClassicQuestions = (req, res) => {
   const schema = Joi.object({
     full: Joi.boolean().required(),
     lang: Joi.number().integer().default(1), // Default language is Turkish --> 1
@@ -63,10 +57,9 @@ router.post('/', checkAuth, (req, res) => {
       });
     });
   }
-});
+}
 
-// Fetching the Classic Question From Id.
-router.post('/withId', checkAuth, async (req, res) => {
+exports.getAllClassicQuestionsFromId = async (req, res) => {
   const schema = Joi.object({
     id: Joi.number().integer().required(),
     lang: Joi.number().integer().default(1), // Default language is Turkish --> 1
@@ -99,10 +92,9 @@ router.post('/withId', checkAuth, async (req, res) => {
       else return res.send(rows[0][0]);
     });
   });
-});
+}
 
-// Fetching the Classic Question From Category and Subcategories.
-router.post('/withCategory', checkAuth, async (req, res) => {
+exports.getAllClassicQuestionsFromCategoryAndSubcategories = async (req, res) => {
   const schema = Joi.object({
     category: Joi.number().integer().required(),
     subcategories: Joi.array().required(),
@@ -163,6 +155,6 @@ router.post('/withCategory', checkAuth, async (req, res) => {
       }
     );
   });
-});
+}
 
-module.exports = router;
+

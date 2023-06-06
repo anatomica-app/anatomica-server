@@ -31,11 +31,11 @@ app.use(
   })
 );
 
-const categoriesRoute = require('./routes/categories');
+const categoriesRoute = require('./routes/category');
 const subcategoriesRoute = require('./routes/subcategories');
 const topicsRoute = require('./routes/topics');
-const classicQuestionsroute = require('./routes/classicQuestions');
-const imageQuestionsroute = require('./routes/imageQuestions');
+const classicQuestionsroute = require('./routes/classicQuestion');
+const imageQuestionsroute = require('./routes/imageQuestion');
 const usersRoute = require('./routes/users');
 const feedbacksRoute = require('./routes/feedbacks');
 const reportsRoute = require('./routes/reports');
