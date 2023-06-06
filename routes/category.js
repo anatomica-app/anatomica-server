@@ -5,10 +5,36 @@ const checkAuth = require('../middlewares/check-auth');
 
 const router = express.Router();
 
-// Fetching all the categories.
+/**
+ * @swagger
+ * /v1/quiz/category:
+ *  get:
+ *    summary: Fetch all the categories
+ *    description: Retrieves all the categories without localization.
+ *    tags:
+ *      - Category
+ *    responses:
+ *      '200':
+ *        description: Success response.
+ *      '500':
+ *        description: An internal server error.
+ */
 router.get('/', checkAuth, categoryController.getAllCategories);
 
-// Fetching all the categories with language.
+/**
+ * @swagger
+ * /v1/quiz/category:
+ *  post:
+ *    summary: Fetch all the categories with language.
+ *    description: Retrieves all the categories in the database with the given localization data.
+ *    tags:
+ *      - Category
+ *    responses:
+ *      '200':
+ *        description: Success response.
+ *      '500':
+ *        description: An internal server error.
+ */
 router.post('/', checkAuth, categoryController.getAllCategoriesWithLanguage);
 
 module.exports = router;

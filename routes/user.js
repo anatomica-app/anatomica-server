@@ -29,7 +29,24 @@ const router = express.Router();
 // // ***** Google OAuth2 Client *****
 // const client = new OAuth2Client(process.env.GOOGLE_OAUTH2_CLIENT_ID);
 
-// Login user with credentials.
+/**
+ * @swagger
+ * /v1/users/login:
+ *  post:
+ *    summary: Login with credentials
+ *    description: Logs the user in with email and password and generates a JWT token.
+ *    tags:
+ *      - User
+ *    responses:
+ *      '200':
+ *        description: Success response.
+ *      '400':
+ *        description: User registered with another provider.
+ *      '404':
+ *        description: The user can not be found..
+ *      '500':
+ *        description: An internal server error.
+ */
 router.post('/login', userController.postLogin);
 
 // Login user with Google.
