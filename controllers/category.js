@@ -2,6 +2,9 @@ const pool = require('../utilities/database');
 const responseMessages = require('../utilities/responseMessages');
 const Joi = require('joi');
 
+const storageUrlPrefix =
+  'https://storage.googleapis.com/anatomica-storage/quiz_category_icons/';
+
 exports.getAllCategories = (req, res) => {
   const sql = 'CALL fetch_all_categories();';
 
