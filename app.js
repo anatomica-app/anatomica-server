@@ -38,7 +38,7 @@ const classicQuestionsroute = require('./routes/classicQuestion');
 const imageQuestionsroute = require('./routes/imageQuestion');
 const usersRoute = require('./routes/users');
 const feedbacksRoute = require('./routes/feedbacks');
-const reportsRoute = require('./routes/reports');
+const reportsRoute = require('./routes/report');
 const contactRoute = require('./routes/contact');
 
 // Limit the payload for 10 MB.

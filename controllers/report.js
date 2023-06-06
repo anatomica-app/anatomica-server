@@ -1,14 +1,7 @@
-const express = require('express');
-const router = express.Router();
-
 const Joi = require('joi');
-
-const checkAuth = require('../middlewares/check-auth');
-
 const pool = require('../utilities/database');
 
-// Create a new report.
-router.post('/', checkAuth, (req, res) => {
+exports.postReport = (req, res) => {
   const schema = Joi.object({
     userId: Joi.number().integer().required(),
     classicId: Joi.number().integer().allow(null).required(),
@@ -51,6 +44,4 @@ router.post('/', checkAuth, (req, res) => {
       }
     });
   });
-});
-
-module.exports = router;
+}
