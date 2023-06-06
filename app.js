@@ -1,10 +1,17 @@
-if (process.env.NODE_ENV !== 'production') {
-  require('dotenv').config();
-}
-
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+process.env.NODE_ENV !== 'production' ? require('dotenv').config() : null;
+
+const categoryRoutes = require('./routes/category');
+const subcategoryRoutes = require('./routes/subcategory');
+const topicRoutes = require('./routes/topic');
+const classicQuestionRoutes = require('./routes/classicQuestion');
+const imageQuestionRoutes = require('./routes/imageQuestion');
+const userRoutes = require('./routes/user');
+const feedbackRoutes = require('./routes/feedbacks');
+const reportRoutes = require('./routes/report');
+const contactRoutes = require('./routes/contact');
 
 const app = express();
 const port = process.env.port || 8080;
@@ -35,38 +42,27 @@ app.use(
   })
 );
 
-const categoriesRoute = require('./routes/category');
-const subcategoriesRoute = require('./routes/subcategory');
-const topicsRoute = require('./routes/topic');
-const classicQuestionsroute = require('./routes/classicQuestion');
-const imageQuestionsroute = require('./routes/imageQuestion');
-const usersRoute = require('./routes/user');
-const feedbacksRoute = require('./routes/feedbacks');
-const reportsRoute = require('./routes/report');
-const contactRoute = require('./routes/contact');
-
 // Limit the payload for 10 MB.
 app.use(express.json({ limit: 10000000 }));
 
 // Serving static files under public directory.
 app.use(express.static('public'));
 
-// ***** Server Methods *****
+app.get('/', (req, res) => {
+  res.send('Hello, world!');
+});
 
-app.use('/' + apiVersion + '/quiz/category', categoriesRoute);
-app.use('/' + apiVersion + '/quiz/subcategory', subcategoriesRoute);
-app.use('/' + apiVersion + '/quiz/topics', topicsRoute);
-app.use('/' + apiVersion + '/quiz/classic', classicQuestionsroute);
-app.use('/' + apiVersion + '/quiz/image', imageQuestionsroute);
-app.use('/' + apiVersion + '/users', usersRoute);
-app.use('/' + apiVersion + '/feedback', feedbacksRoute);
-app.use('/' + apiVersion + '/report', reportsRoute);
-app.use('/' + apiVersion + '/contact', contactRoute);
+// ***** Server Methods *****
+app.use('/' + apiVersion + '/quiz/category', categoryRoutes);
+app.use('/' + apiVersion + '/quiz/subcategory', subcategoryRoutes);
+app.use('/' + apiVersion + '/quiz/topics', topicRoutes);
+app.use('/' + apiVersion + '/quiz/classic', classicQuestionRoutes);
+app.use('/' + apiVersion + '/quiz/image', imageQuestionRoutes);
+app.use('/' + apiVersion + '/users', userRoutes);
+app.use('/' + apiVersion + '/feedback', feedbackRoutes);
+app.use('/' + apiVersion + '/report', reportRoutes);
+app.use('/' + apiVersion + '/contact', contactRoutes);
 
 app.listen(port, () => {
   console.log('App listening at port: ' + port);
-});
-
-app.get('/', (req, res) => {
-  res.send('Hello, world!');
 });

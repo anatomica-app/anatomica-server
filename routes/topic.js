@@ -1,14 +1,9 @@
 const express = require('express');
-const router = express.Router();
-
-const Joi = require('joi');
-
-const checkAuth = require('../middlewares/check-auth');
-
-const pool = require('../utilities/database');
-const responseMessages = require('../utilities/responseMessages');
 
 const topicController = require('../controllers/topic');
+const checkAuth = require('../middlewares/check-auth');
+
+const router = express.Router();
 
 // Fetching all the topics.
 router.post('/', checkAuth, topicController.getAllTopics);

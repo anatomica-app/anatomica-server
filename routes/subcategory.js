@@ -1,14 +1,9 @@
 const express = require('express');
-const router = express.Router();
-
-const Joi = require('joi');
-
-const checkAuth = require('../middlewares/check-auth');
-
-const pool = require('../utilities/database');
-const responseMessages = require('../utilities/responseMessages');
 
 const subcategoryController = require('../controllers/subcategory');
+const checkAuth = require('../middlewares/check-auth');
+
+const router = express.Router();
 
 // Fetching all the subcategories.
 router.get('/', checkAuth,subcategoryController.getAllSubcategories);
