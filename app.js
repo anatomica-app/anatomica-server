@@ -53,15 +53,22 @@ app.get('/', (req, res) => {
 });
 
 // ***** Server Methods *****
-app.use('/' + apiVersion + '/quiz/category', categoryRoutes);
-app.use('/' + apiVersion + '/quiz/subcategory', subcategoryRoutes);
-app.use('/' + apiVersion + '/quiz/topics', topicRoutes);
-app.use('/' + apiVersion + '/quiz/classic', classicQuestionRoutes);
-app.use('/' + apiVersion + '/quiz/image', imageQuestionRoutes);
-app.use('/' + apiVersion + '/users', userRoutes);
-app.use('/' + apiVersion + '/feedback', feedbackRoutes);
-app.use('/' + apiVersion + '/report', reportRoutes);
-app.use('/' + apiVersion + '/contact', contactRoutes);
+const routes = [
+  { path: 'quiz/category', router: categoryRoutes },
+  { path: 'quiz/subcategory', router: subcategoryRoutes },
+  { path: 'quiz/topics', router: topicRoutes },
+  { path: 'quiz/classic', router: classicQuestionRoutes },
+  { path: 'quiz/image', router: imageQuestionRoutes },
+  { path: 'users', router: userRoutes },
+  { path: 'feedback', router: feedbackRoutes },
+  { path: 'report', router: reportRoutes },
+  { path: 'contact', router: contactRoutes },
+];
+
+routes.forEach((route) => {
+  app.use(`/${apiVersion}/${route.path}`, route.router);
+});
+
 
 app.listen(port, () => {
   console.log('App listening at port: ' + port);
