@@ -3,10 +3,10 @@ const router = express.Router();
 
 const Joi = require('joi');
 
-const checkAuth = require('../middlewares/check-auth');
+const checkAuth = require('../../middlewares/check-auth');
 
-const pool = require('../utilities/database');
-const responseMessages = require('../utilities/responseMessages');
+const pool = require('../../utilities/database');
+const responseMessages = require('../../utilities/responseMessages');
 
 // Fetching all the questions
 router.post('/', checkAuth, (req, res) => {

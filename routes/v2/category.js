@@ -1,7 +1,7 @@
 const express = require('express');
 
-const categoryController = require('../controllers/category');
-const checkAuth = require('../middlewares/check-auth');
+const categoryController = require('../../controllers/category');
+const checkAuth = require('../../middlewares/check-auth');
 
 const router = express.Router();
 

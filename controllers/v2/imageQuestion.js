@@ -1,19 +1,11 @@
-const express = require('express');
-const router = express.Router();
-
 const Joi = require('joi');
+const pool = require('../../utilities/database');
+const responseMessages = require('../../utilities/responseMessages');
 
-const checkAuth = require('../middlewares/check-auth');
-
-const pool = require('../utilities/database');
-const responseMessages = require('../utilities/responseMessages');
-
-// Fetching all the questions
-router.post('/', checkAuth, (req, res) => {
+exports.getAllImageQuestions = (req, res) => {
   const schema = Joi.object({
     full: Joi.boolean().required(),
     lang: Joi.number().integer().default(1), // Default language is Turkish --> 1
-    type: Joi.number().integer().required(), // 1: Multiple Choice, 2: Open Ended
   });
 
   // Change the language if there is a lang variable in request body.
@@ -28,11 +20,7 @@ router.post('/', checkAuth, (req, res) => {
 
   if (req.body.full) {
     // We need to inner join the foreign keys.
-    if (req.body.type == 1) {
-      sql = 'CALL fetch_pictured_questions_with_joins(?);';
-    } else {
-      sql = 'CALL fetch_questions_with_joins(?);';
-    }
+    sql = 'CALL fetch_pictured_questions_with_joins(?);';
 
     pool.getConnection(function (err, conn) {
       if (err)
@@ -50,11 +38,7 @@ router.post('/', checkAuth, (req, res) => {
       });
     });
   } else {
-    if (req.body.type == 1) {
-      sql = 'CALL fetch_pictured_questions(?);';
-    } else {
-      sql = 'CALL fetch_questions(?);';
-    }
+    sql = 'CALL fetch_pictured_questions(?);';
 
     pool.getConnection(function (err, conn) {
       if (err)
@@ -72,14 +56,12 @@ router.post('/', checkAuth, (req, res) => {
       });
     });
   }
-});
+}
 
-// Fetching the Image Question From Id.
-router.post('/withId', checkAuth, async (req, res) => {
+exports.getAllImageQuestionsFromId = async (req, res) => {
   const schema = Joi.object({
     id: Joi.number().integer().required(),
     lang: Joi.number().integer().default(1), // Default language is Turkish --> 1
-    type: Joi.number().integer().required(), // 1: Multiple Choice, 2: Open Ended
   });
 
   // Change the language if there is a lang variable in request body.
@@ -90,13 +72,7 @@ router.post('/withId', checkAuth, async (req, res) => {
   if (result.error)
     return res.status(400).json({ message: result.error.details[0].message });
 
-  let sql = '';
-
-  if (req.body.type == 1) {
-    sql = 'CALL fetch_pictured_question_by_id(?, ?);';
-  } else {
-    sql = 'CALL fetch_question_by_id(?, ?);';
-  }
+  const sql = 'CALL fetch_pictured_question_by_id(?, ?);';
 
   pool.getConnection(function (err, conn) {
     if (err) return res.status(500).json({ message: responseMessages });
@@ -111,17 +87,15 @@ router.post('/withId', checkAuth, async (req, res) => {
       else return res.send(rows[0]);
     });
   });
-});
+}
 
-// Fetching the Image Question From Category and Subcategories.
-router.post('/withCategory', checkAuth, async (req, res) => {
+exports.getAllImageQuestionsFromCategoryAndSubcategories = async (req, res) => {
   const schema = Joi.object({
     category: Joi.number().integer().required(),
     subcategories: Joi.array().required(),
     topics: Joi.array(),
     maxQuestionCount: Joi.number().integer().min(1).required(),
     lang: Joi.number().integer().default(1), // Default language is Turkish --> 1
-    type: Joi.number().integer().required(), // 1: Multiple Choice, 2: Open Ended
   });
 
   // Change the language if there is a lang variable in request body.
@@ -151,13 +125,7 @@ router.post('/withCategory', checkAuth, async (req, res) => {
   }
   topicsQuery += '0';
 
-  let sql = '';
-
-  if (req.body.type == 1) {
-    sql = 'CALL fetch_pictured_questions_by_category(?, ?, ?, ?, ?);';
-  } else {
-    sql = 'CALL fetch_questions_by_category(?, ?, ?, ?, ?);';
-  }
+  const sql = 'CALL fetch_pictured_questions_by_category(?, ?, ?, ?, ?);';
 
   pool.getConnection(function (err, conn) {
     if (err)
@@ -182,6 +150,4 @@ router.post('/withCategory', checkAuth, async (req, res) => {
       }
     );
   });
-});
-
-module.exports = router;
+}
