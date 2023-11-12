@@ -8,3 +8,5 @@ deploy.sh
 deploy-debug.sh
 .vscode/launch.json
 .idea
+
+*.env
