@@ -13,8 +13,10 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const pool = require('../database');
 const constants = require('./constants');
-const errorCodes = require('./errors');
 const responseMessages = require('./responseMessages');
+const userInfo = require('../authenticatedUserService');
+const logger = require('../logger');
+const { error } = require('winston');
 
 // ***** Google Cloud Storage *****
 const storage = new Storage();
@@ -34,25 +36,37 @@ router.post('/login', async (req, res) => {
   });
 
   const result = schema.validate(req.body);
-  if (result.error)
+  if (result.error) {
+    logger.logValidationError(req, result.error);
     return res.status(400).json({ message: result.error.details[0].message });
+  }
 
   const sql = 'CALL fetch_user_by_email(?);';
 
   pool.getConnection(function (err, conn) {
-    if (err)
+    if (err) {
+      logger.logDatabaseError(req, err);
       return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    }
     conn.query(sql, [req.body.email], (error, rows) => {
       conn.release();
-      if (error)
+      if (error) {
+        logger.logDatabaseError(req, error);
         return res
           .status(500)
           .json({ message: responseMessages.DATABASE_ERROR });
+      }
 
-      if (!rows[0][0])
+      if (!rows[0][0]) {
+        logger.logger.warning("Login Error", {
+          request: {
+            email: req.body.email,
+          }
+        });
         return res.status(404).json({
           message: responseMessages.EMAIL_OR_PASSWORD_INCORRECT,
         });
+      }
       else {
         // We should check whether the user authenticated with default authentication or not.
         let user = rows[0][0];
@@ -64,10 +78,12 @@ router.post('/login', async (req, res) => {
             req.body.password,
             user.password,
             function (err, result) {
-              if (err)
+              if (err) {
+                logger.logDatabaseError(req, err);
                 return res
                   .status(500)
                   .json({ message: responseMessages.DATABASE_ERROR });
+              }
 
               if (result) {
                 if (user.isActive === 1) {
@@ -84,9 +100,19 @@ router.post('/login', async (req, res) => {
 
                   user.token = token;
                 }
-
+                logger.logger.info("Successful Login", {
+                  request: {
+                    id: user.id,
+                    email: req.body.email,
+                  }
+                });
                 return res.send(user);
               } else {
+                logger.logger.warning("Login Error", {
+                  request: {
+                    email: req.body.email,
+                  }
+                });
                 return res.status(404).json({
                   message: responseMessages.EMAIL_OR_PASSWORD_INCORRECT,
                 });
@@ -94,6 +120,11 @@ router.post('/login', async (req, res) => {
             }
           );
         } else {
+          logger.logger.warning("Login Error (Wrong Provider)", {
+            request: {
+              email: req.body.email,
+            }
+          });
           return res.status(400).json({
             message: responseMessages.EMAIL_REGISTERED_ANOTHER_PROVIDER,
           });
@@ -110,13 +141,16 @@ router.post('/google', async (req, res) => {
   });
 
   const result = schema.validate(req.body);
-  if (result.error)
+  if (result.error) {
+    logger.logValidationError(req, result.error);
     return res.status(400).json({ message: result.error.details[0].message });
+  }
 
   const verifyGoogleAccountResponse = await verifyGoogleAccount(
     req.body.idToken
   );
   if (!verifyGoogleAccountResponse) {
+    logger.logger.error("GOOGLE VERIFY ERROR");
     return res
       .status(500)
       .json({ message: responseMessages.GOOGLE_AUTH_FAILED });
@@ -135,19 +169,23 @@ router.post('/google', async (req, res) => {
   const sql = 'CALL fetch_user_by_email(?);';
 
   pool.getConnection(function (err, conn) {
-    if (err)
+    if (err) {
+      logger.logDatabaseError(req, err);
       return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    }
     conn.query(sql, [email], (error, rows) => {
       conn.release();
-      if (error)
+      if (error) {
+        logger.logDatabaseError(req, error);
         return res
           .status(500)
           .json({ message: responseMessages.DATABASE_ERROR });
+      }
 
       if (!rows[0][0]) {
         // The user with the same email address was not
         // found on the server. Create a new record.
-        createGoogleUser(name, lastName, email, picture, googleId, res);
+        createGoogleUser(name, lastName, email, picture, googleId, req, res);
       } else {
         // We got a record with the same email address.
         // Let's check whether it's google_account or not.
@@ -168,10 +206,22 @@ router.post('/google', async (req, res) => {
           );
 
           user.token = token;
+          logger.logger.info("Successful Login (Google)", {
+            requestInfo: {
+              name: verifyGoogleAccountResponse.given_name,
+              lastName: verifyGoogleAccountResponse.family_name,
+              email: verifyGoogleAccountResponse.email,
+            }
+          });
           return res.send(user);
         } else {
           // The email address was registered with
           // non-google account before. Deny the process.
+          logger.logger.warning("Login Error (Wrong Provider)", {
+            request: {
+              email: verifyGoogleAccountResponse.email,
+            }
+          });
           return res.status(409).json({
             message: responseMessages.EMAIL_REGISTERED_ANOTHER_PROVIDER,
           });
@@ -191,20 +241,26 @@ router.post('/apple', (req, res) => {
   });
 
   const result = schema.validate(req.body);
-  if (result.error)
+  if (result.error) {
+    logger.logValidationError(result.error);
     return res.status(400).json({ message: result.error.details[0].message });
+  }
 
   const sql = 'CALL fetch_user_by_apple_id(?);';
 
   pool.getConnection(function (err, conn) {
-    if (err)
+    if (err) {
+      logger.logDatabaseError(req, err);
       return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    }
     conn.query(sql, [req.body.appleId], (error, rows) => {
       conn.release();
-      if (error)
+      if (error) {
+        logger.logDatabaseError(req, error);
         return res
           .status(500)
           .json({ message: responseMessages.DATABASE_ERROR });
+      }
 
       if (!rows[0][0]) {
         // The user with the same email address was not
@@ -215,9 +271,11 @@ router.post('/apple', (req, res) => {
             req.body.lastName,
             req.body.email,
             req.body.appleId,
+            req,
             res
           );
         } else {
+          logger.logger.error("Login Error (AppleID Not Found)");
           return res.status(404).json({
             message: responseMessages.APPLE_ID_NOT_FOUND,
           });
@@ -237,7 +295,11 @@ router.post('/apple', (req, res) => {
         );
 
         user.token = token;
-
+        logger.logger.info("Successful Login (Apple)", {
+          name: req.body.name,
+          lastName: req.body.lastName,
+          email: req.body.email,
+        });
         return res.send(user);
       }
     });
@@ -254,17 +316,22 @@ router.post('/', (req, res) => {
   });
 
   const result = schema.validate(req.body);
-  if (result.error)
+  if (result.error) {
+    logger.logValidationError(req, result.error);
     return res.json({ message: result.error.details[0].message });
+  }
 
   const sql = 'CALL fetch_user_by_email(?);';
 
   pool.getConnection(function (err, conn) {
-    if (err)
+    if (err) {
+      logger.logDatabaseError(req, err);
       return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    }
     conn.query(sql, [req.body.email], (error, rows) => {
       if (error) {
         conn.release();
+        logger.logDatabaseError(req, error);
         return res
           .status(500)
           .json({ message: responseMessages.DATABASE_ERROR });
@@ -276,7 +343,10 @@ router.post('/', (req, res) => {
         const sql2 = 'CALL create_user(?,?,?,?,?);';
 
         bcrypt.hash(req.body.password, 10, function (err, hashedPassword) {
-          if (err) return res.status(500).json({ message: err.message });
+          if (err) {
+            logger.logger.error("HASH ERROR", err);
+            return res.status(500).json({ message: err.message });
+          }
 
           // Create a new JWT.
           const token = jwt.sign(
@@ -300,23 +370,40 @@ router.post('/', (req, res) => {
             ],
             (error2, rows2) => {
               conn.release();
-              if (error2)
+              if (error2) {
+                logger.logDatabaseError(req, error2);
                 return res
                   .status(500)
                   .json({ message: responseMessages.DATABASE_ERROR });
+              }
 
               let result = rows2[0][0];
 
               if (result.insertId === 0) {
+                logger.logger.error("User Cannot Be Created", {
+                  requestInfo: {
+                    name: req.body.name,
+                    lastName: req.body.lastName,
+                    email: req.body.email,
+                  },
+                });
                 return res.status(500).json({
                   message: responseMessages.USER_CANNOT_BE_CREATED,
                 });
               } else {
+                logger.logger.info("Successful Register", {
+                  requestInfo: {
+                    name: req.body.name,
+                    lastName: req.body.lastName,
+                    email: req.body.email,
+                  }
+                });
                 sendRegisterMail(
                   req.body.name,
                   req.body.email,
                   result.insertId,
-                  token
+                  token,
+                  req
                 );
                 return res.send({ id: result.insertId });
               }
@@ -325,26 +412,19 @@ router.post('/', (req, res) => {
         });
       } else {
         // The user was already exists with this email address.
+        logger.logger.warning("Register Error (User Already Exists)", {
+          requestInfo: {
+            name: req.body.name,
+            lastName: req.body.lastName,
+            email: req.body.email,
+          }
+        });
         return res.status(409).json({
           message: responseMessages.USER_ALREADY_EXISTS,
         });
       }
     });
   });
-});
-
-// Change user name.
-router.put('/changeUserName/', async (req, res) => {
-  const schema = Joi.object({
-    id: Joi.number().integer().required(),
-    name: Joi.string().required(),
-  });
-
-  const result = schema.validate(req.body);
-  if (result.error)
-    return res.json({ error: true, message: result.error.details[0].message });
-
-  await canChangeUserName(req.body.id, req.body.name, res);
 });
 
 // Change profile picture.
@@ -355,8 +435,10 @@ router.put('/changeProfilePicture', async (req, res) => {
   });
 
   const result = schema.validate(req.body);
-  if (result.error)
+  if (result.error) {
+    logger.logValidationError(req, result.error);
     return res.status(500).json({ message: result.error.details[0].message });
+  }
 
   let sql = '';
   let data = [];
@@ -367,16 +449,23 @@ router.put('/changeProfilePicture', async (req, res) => {
   sql =
     'SELECT account_type, profile_photo FROM users WHERE user_id = ? LIMIT 1';
   pool.getConnection(function (err, conn) {
-    if (err)
+    if (err) {
+      logger.logDatabaseError(req, err);
       return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    }
     conn.query(sql, [req.body.id], (error, rows) => {
       conn.release();
-      if (error)
+      if (error) {
+        logger.logDatabaseError(req, error);
         return res
           .status(500)
           .json({ message: responseMessages.DATABASE_ERROR });
+      }
 
       if (!rows[0]) {
+        logger.logger.warning("Profile Photo Update Error (User Not Found)", {
+          request: userInfo(req),
+        });
         return res
           .status(404)
           .json({ message: responseMessages.USER_NOT_FOUND });
@@ -421,23 +510,33 @@ router.put('/changeProfilePicture', async (req, res) => {
           sql = 'UPDATE users SET profile_photo = ? WHERE user_id = ?';
 
           pool.getConnection(function (err, conn) {
-            if (err)
+            if (err) {
+              logger.logDatabaseError(req, err);
               return res
                 .status(500)
                 .json({ message: responseMessages.DATABASE_ERROR });
+            }
             conn.query(sql, data, (error, rows) => {
               conn.release();
-              if (error)
+              if (error) {
+                logger.logDatabaseError(req, error);
                 return res.json({
                   error: true,
                   message: responseMessages.DATABASE_ERROR,
                 });
+              }
 
               if (rows.affectedRows === 0) {
+                logger.logger.error("Profile Photo Update Error (Cannot Be Updated)", {
+                  request: userInfo(req),
+                });
                 return res.json({
                   message: responseMessages.USER_CANNOT_UPDATED,
                 });
               } else {
+                logger.logger.info("Successfully Updated Profile Photo", {
+                  request: userInfo(req),
+                });
                 return res.json({ data: data });
               }
             });
@@ -455,21 +554,28 @@ router.post('/sendVerificationEmail', (req, res) => {
   });
 
   const result = schema.validate(req.body);
-  if (result.error)
+  if (result.error) {
+    logger.logValidationError(req, result.error);
     return res.status(500).json({ message: result.error.details[0].message });
+  }
 
   const sql = 'CALL fetch_user_by_email(?);';
 
   pool.getConnection(function (err, conn) {
-    if (err)
-      return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    if (err) {
+      logger.logDatabaseError(req, err);
+    }
     conn.query(sql, [req.body.email], (error, rows) => {
-      if (error)
-        return res
-          .status(500)
-          .json({ message: responseMessages.DATABASE_ERROR });
+      if (error) {
+        logger.logDatabaseError(req, error);
+      }
 
       if (!rows[0]) {
+        logger.logger.error("Send Verification Mail Error (User Not Found)", {
+          requestInfo: {
+            email: req.body.email,
+          }
+        });
         return res.status(404).json({
           message: responseMessages.USER_NOT_FOUND,
         });
@@ -498,23 +604,47 @@ router.post('/sendVerificationEmail', (req, res) => {
             const sql2 = 'CALL update_user_verification_hash();';
 
             conn.query(sql2, [token, req.body.email], (error2, rows2) => {
-              if (error)
+              if (error) {
+                logger.logDatabaseError(req, error);
                 return res
                   .status(500)
                   .json({ message: responseMessages.DATABASE_ERROR });
+              }
 
-              sendRegisterMail(user.name, req.body.email, user.id, token);
+              logger.logger.info("Successfully Send Verification Mail", {
+                request: {
+                  id: user.id,
+                  email: req.body.email,
+                },
+                requestInfo: {
+                  id: user.id,
+                  name: user.name,
+                  lastName: user.last_name,
+                  email: req.body.email,
+                }
+              });
+              sendRegisterMail(user.name, req.body.email, user.id, token, req);
 
               return res.send({
                 message: responseMessages.VERIFICATION_MAIL_SENT,
               });
             });
           } else {
+            logger.logger.error("Send Verification Mail Error (Already Activated)", {
+              requestInfo: {
+                email: req.body.email,
+              }
+            });
             return res.status(409).json({
               message: responseMessages.USER_ALREADY_ACTIVATED_ACCOUNT,
             });
           }
         } else {
+          logger.logger.error("Send Verification Mail Error (Already Activated)", {
+            requestInfo: {
+              email: req.body.email,
+            }
+          });
           return res.status(409).json({
             message: responseMessages.USER_ALREADY_ACTIVATED_ACCOUNT,
           });
@@ -534,18 +664,28 @@ router.get('/verify/:id/:hash', (req, res) => {
     const sql = 'CALL update_user_active_status(?, ?);';
 
     pool.getConnection(function (err, conn) {
-      if (err)
+      if (err) {
+        logger.logDatabaseError(req, err);
         return res
           .status(500)
           .json({ message: responseMessages.DATABASE_ERROR });
+      }
       conn.query(sql, [req.params.id, req.params.hash], (error, rows) => {
         conn.release();
-        if (error)
+        if (error) {
+          logger.logDatabaseError(req, error);
           return res
             .status(500)
             .json({ message: responseMessages.DATABASE_ERROR });
+        }
 
         if (rows.affectedRows === 0) {
+          logger.logger.error("User Activation Error (Cannot Be Updated)", {
+            requestInfo: {
+              id: req.params.id,
+              hash: req.params.hash,
+            }
+          });
           return res.status(500).json({
             message: responseMessages.USER_CANNOT_UPDATED,
           });
@@ -556,8 +696,10 @@ router.get('/verify/:id/:hash', (req, res) => {
           );
 
           fs.readFile(pagePath, function (err, data) {
-            if (err)
+            if (err) {
+              logger.logDatabaseError(req, err);
               return res.json({ message: responseMessages.DATABASE_ERROR });
+            }
 
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.write(data);
@@ -570,7 +712,10 @@ router.get('/verify/:id/:hash', (req, res) => {
     let pagePath = path.join(__dirname, '../page_templates/expired_token.html');
 
     fs.readFile(pagePath, function (err, data) {
-      if (err) return res.json({ message: responseMessages.DATABASE_ERROR });
+      if (err) {
+        logger.logDatabaseError(req, err);
+        return res.json({ message: responseMessages.DATABASE_ERROR });
+      }
 
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.write(data);
@@ -586,22 +731,33 @@ router.post('/password/resetMail/', (req, res) => {
   });
 
   const result = schema.validate(req.body);
-  if (result.error)
+  if (result.error) {
+    logger.logValidationError(req, result.error);
     return res.status(400).json({ message: result.error.details[0].message });
+  }
 
   const sql = 'CALL fetch_user_by_email(?)';
 
   pool.getConnection(function (err, conn) {
-    if (err)
+    if (err) {
+      logger.logDatabaseError(req, err);
       return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    }
     conn.query(sql, [req.body.email], (error, rows) => {
       conn.release();
-      if (error)
+      if (error) {
+        logger.logDatabaseError(req, error);
         return res
           .status(500)
           .json({ message: responseMessages.DATABASE_ERROR });
+      }
 
       if (!rows[0][0]) {
+        logger.logger.error("Reset Password Mail Send Error (User Not Found)", {
+          requestInfo: {
+            email: req.body.email
+          }
+        });
         return res.status(404).json({
           message: responseMessages.USER_NOT_FOUND,
         });
@@ -625,31 +781,58 @@ router.post('/password/resetMail/', (req, res) => {
 
           // Hash this token in order to save it in the database.
           bcrypt.hash(token, 10, function (err, hashedToken) {
-            if (err)
+            if (err) {
+              logger.logger.error("HASH ERROR", err);
               return res.json({ message: responseMessages.DATABASE_ERROR });
+            }
 
             // We got the hashed token.
             // Let's save it to the database.
             const sql2 = 'CALL update_password_reset_token(?, ?)';
 
             conn.query(sql2, [user.id, hashedToken], (error2, rows2) => {
-              if (error2)
+              if (error2) {
+                logger.logDatabaseError(req, error2);
                 return res.json({ message: responseMessages.DATABASE_ERROR });
+              }
 
               if (rows2.affectedRows !== 0) {
                 // Everything is awesome! Let's send the email.
+                logger.logger.info("Successfully Sent Reset Password Mail", {
+                  request: {
+                    id: user.id,
+                    email: req.body.email
+                  },
+                  requestInfo: {
+                    name: user.name,
+                    lastName: user.last_name,
+                    email: req.body.email,
+                  }
+                });
 
                 sendPasswordResetMail(
                   user.id,
                   user.name,
                   req.body.email,
-                  token
+                  token,
+                  req
                 );
 
                 return res.send({
                   message: responseMessages.PASSWORD_RESET_MAIL_SENT,
                 });
               } else {
+                logger.logger.error("PASSWORD RESET TOKEN GENERATION ERROR", {
+                  request: {
+                    id: user.id,
+                    email: req.body.email
+                  },
+                  requestInfo: {
+                    name: user.name,
+                    lastName: user.last_name,
+                    email: req.body.email,
+                  }
+                });
                 return res.status(500).json({
                   message: responseMessages.PASSWORD_RESET_TOKEN_CANNOT_CREATED,
                 });
@@ -657,6 +840,11 @@ router.post('/password/resetMail/', (req, res) => {
             });
           });
         } else {
+          logger.logger.warning("Password Reset Mail Send Error (Wrong Provider)", {
+            requestInfo: {
+              email: req.body.email,
+            }
+          });
           return res.status(409).json({
             message: responseMessages.EMAIL_REGISTERED_ANOTHER_PROVIDER,
           });
@@ -678,25 +866,31 @@ router.get('/password/reset/:id/:token', (req, res) => {
     const sql = 'CALL fetch_user_by_id(?);';
 
     pool.getConnection(function (err, conn) {
-      if (err)
+      if (err) {
+        logger.logDatabaseError(req, err);
         return res
           .status(500)
           .json({ message: responseMessages.DATABASE_ERROR });
+      }
       conn.query(sql, [req.params.id], (error, rows) => {
         conn.release();
-        if (error)
+        if (error) {
+          logger.logDatabaseError(req, error);
           return res
             .status(500)
             .json({ message: responseMessages.DATABASE_ERROR });
+        }
 
         if (!rows[0][0]) {
           fs.readFile(
             path.join(__dirname, '../page_templates/expired_token.html'),
             function (err, data) {
-              if (err)
+              if (err) {
+                logger.logDatabaseError(req, err);
                 return res
                   .status(500)
                   .json({ message: responseMessages.DATABASE_ERROR });
+              }
 
               res.writeHead(200, { 'Content-Type': 'text/html' });
               res.write(data);
@@ -712,11 +906,13 @@ router.get('/password/reset/:id/:token', (req, res) => {
             fs.readFile(
               path.join(__dirname, '../page_templates/expired_token.html'),
               function (err, data) {
-                if (err)
+                if (err) {
+                  logger.logDatabaseError(req, err);
                   return res
                     .status(500)
                     .json({ message: responseMessages.DATABASE_ERROR });
 
+                }
                 res.writeHead(200, { 'Content-Type': 'text/html' });
                 res.write(data);
                 return res.end();
@@ -728,10 +924,12 @@ router.get('/password/reset/:id/:token', (req, res) => {
               req.params.token,
               user.resetToken,
               function (err, result) {
-                if (err)
+                if (err) {
+                  logger.logger.error("HASH ERROR", err);
                   return res
                     .status(500)
                     .json({ message: responseMessages.DATABASE_ERROR });
+                }
 
                 if (result) {
                   // The reset token is valid. Show the HTML.
@@ -741,10 +939,12 @@ router.get('/password/reset/:id/:token', (req, res) => {
                   );
 
                   fs.readFile(pagePath, function (err, data) {
-                    if (err)
+                    if (err) {
+                      logger.logDatabaseError(req, err);
                       return res
                         .status(500)
                         .json({ message: responseMessages.DATABASE_ERROR });
+                    }
 
                     res.writeHead(200, { 'Content-Type': 'text/html' });
                     res.write(data);
@@ -758,10 +958,12 @@ router.get('/password/reset/:id/:token', (req, res) => {
                       '../page_templates/expired_token.html'
                     ),
                     function (err, data) {
-                      if (err)
+                      if (err) {
+                        logger.logDatabaseError(req, err);
                         return res
                           .status(500)
                           .json({ message: responseMessages.DATABASE_ERROR });
+                      }
 
                       res.writeHead(200, { 'Content-Type': 'text/html' });
                       res.write(data);
@@ -779,10 +981,12 @@ router.get('/password/reset/:id/:token', (req, res) => {
     fs.readFile(
       path.join(__dirname, '../page_templates/expired_token.html'),
       function (err, data) {
-        if (err)
+        if (err) {
+          logger.logDatabaseError(req, err);
           return res
             .status(500)
             .json({ message: responseMessages.DATABASE_ERROR });
+        }
 
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.write(data);
@@ -801,21 +1005,32 @@ router.put('/password/update', (req, res) => {
   });
 
   const result = schema.validate(req.body);
-  if (result.error)
+  if (result.error) {
+    logger.logValidationError(req, result.error);
     return res.status(500).json({ message: result.error.details[0].message });
+  }
 
   const sql = 'CALL fetch_user_by_id(?);';
 
   pool.getConnection(function (err, conn) {
-    if (err)
+    if (err) {
+      logger.logDatabaseError(req, err);
       return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    }
     conn.query(sql, [req.body.id], (error, rows) => {
-      if (error)
+      if (error) {
+        logger.logDatabaseError(req, error);
         return res
           .status(500)
           .json({ message: responseMessages.DATABASE_ERROR });
-
+      }
       if (!rows[0][0]) {
+        logger.logger.warning("Password Update Error (User Not Found)", {
+          requestInfo: {
+            id: req.body.id,
+            token: req.body.token,
+          }
+        });
         return res.status(404).json({
           message: responseMessages.USER_NOT_FOUND,
         });
@@ -825,6 +1040,12 @@ router.put('/password/update', (req, res) => {
 
         if (!user.resetToken) {
           // Reset token is NULL.
+          logger.logger.warning("Password Update Error (Invalid Token)", {
+            requestInfo: {
+              id: req.body.id,
+              token: req.body.token,
+            }
+          });
           return res.status(401).json({
             message: 'Invalid or expired reset token.',
           });
@@ -834,10 +1055,12 @@ router.put('/password/update', (req, res) => {
             req.body.token,
             user.resetToken,
             function (err, result) {
-              if (err)
+              if (err) {
+                logger.logger.error("HASH ERROR", err);
                 return res
                   .status(500)
                   .json({ message: responseMessages.DATABASE_ERROR });
+              }
 
               if (result) {
                 // The reset token is valid. Show the HTML.
@@ -846,13 +1069,25 @@ router.put('/password/update', (req, res) => {
                   req.body.password,
                   10,
                   function (err, hashedPassword) {
-                    if (err)
+                    if (err) {
+                      logger.logger.error("HASH ERROR", err);
                       return res
                         .status(500)
                         .json({ message: responseMessages.DATABASE_ERROR });
+                    }
 
                     if (user.password === hashedPassword) {
                       // New password is same as old password.
+                      logger.logger.warning("Password Update Error (Previous Password Identical)", {
+                        request: {
+                          id: user.id,
+                          email: user.email,
+                        },
+                        requestInfo: {
+                          id: req.body.id,
+                          token: req.body.token,
+                        }
+                      })
                       return res.status(400).json({
                         message: responseMessages.PASSWORD_CANNOT_BE_SAME,
                       });
@@ -864,20 +1099,42 @@ router.put('/password/update', (req, res) => {
                         [req.body.id, user.resetToken, hashedPassword],
                         (error2, rows2) => {
                           conn.release();
-                          if (error2)
+                          if (error2) {
+                            logger.logDatabaseError(req, error2);
                             return res
                               .status(500)
                               .json({
                                 message: responseMessages.DATABASE_ERROR,
                               });
+                          }
 
                           if (rows2.affectedRows !== 0) {
                             // Password changed successfully.
+                            logger.logger.info("Successfully Changed Password", {
+                              request: {
+                                id: user.id,
+                                email: user.email,
+                              },
+                              requestInfo: {
+                                id: req.body.id,
+                                token: req.body.token,
+                              }
+                            })
                             return res.json({
                               message:
                                 responseMessages.PASSWORD_CHANGED_SUCCESSFULLY,
                             });
                           } else {
+                            logger.logger.error("PASSWORD CHANGE ERROR", {
+                              request: {
+                                id: user.id,
+                                email: user.email,
+                              },
+                              requestInfo: {
+                                id: req.body.id,
+                                token: req.body.token,
+                              }
+                            })
                             return res.status(500).json({
                               message: responseMessages.PASSWORD_CANNOT_CHANGED,
                             });
@@ -889,6 +1146,16 @@ router.put('/password/update', (req, res) => {
                 );
               } else {
                 // Reset token is invalid or expired.
+                logger.logger.warning("Password Change Error (Invalid or Expired Token)", {
+                  request: {
+                    id: user.id,
+                    email: user.email,
+                  },
+                  requestInfo: {
+                    id: req.body.id,
+                    token: req.body.token,
+                  }
+                });
                 return res.status(401).json({
                   message: responseMessages.INVALID_OR_EXPIRED_TOKEN,
                 });
@@ -909,32 +1176,50 @@ router.delete('/', (req, res) => {
   });
 
   const result = schema.validate(req.body);
-  if (result.error)
+  if (result.error) {
+    logger.logValidationError(req, result.error);
     return res.status(500).json({ message: result.error.details[0].message });
+  }
 
   const sql = 'CALL delete_user(?, ?);';
 
   pool.getConnection(function (err, conn) {
-    if (err)
+    if (err) {
+      logger.logDatabaseError(req, err);
       return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    }
     conn.query(sql, [req.body.id, req.body.email], (error, rows) => {
       conn.release();
-      if (error)
+      if (error) {
+        logger.logDatabaseError(req, err);
         return res
           .status(500)
           .json({ message: responseMessages.DATABASE_ERROR });
+      }
 
       if (rows.affectedRows !== 0) {
         // User deleted successfully.
+        logger.logger.info("Successfully Deleted User", {
+          request: {
+            id: req.body.id,
+            email: req.body.email,
+          }
+        })
 
         // Send an email to the user.
-        sendAccountDeletedMail(req.body.email);
+        sendAccountDeletedMail(req.body.email, req);
 
         return res.json({
           message: responseMessages.ACCOUNT_DELETED_SUCCESSFULLT,
         });
       }
 
+      logger.logger.warning("Delete User Error (User Not Found)", {
+        request: {
+          id: req.body.id,
+          email: req.body.email,
+        }
+      })
       return res.status(404).json({
         message: responseMessages.USER_NOT_FOUND,
       });
@@ -943,12 +1228,15 @@ router.delete('/', (req, res) => {
 });
 
 // ***** Helper Functions *****
-async function sendRegisterMail(name, email, id, hash) {
+async function sendRegisterMail(name, email, id, hash, req) {
   let mailPath = path.join(__dirname, '../mail_templates/register.html');
 
   // Prepare the HTML with replacing the placeholder strings.
   fs.readFile(mailPath, 'utf8', async function (err, data) {
-    if (err) return err.message;
+    if (err) {
+      logger.logDatabaseError(req, err);
+      return err.message;
+    }
 
     let verifyUrl = `${apiPrefix}${apiVersion}/users/verify/${id}/${hash}`;
 
@@ -969,23 +1257,31 @@ async function sendRegisterMail(name, email, id, hash) {
       })
     );
 
-    const json = await transport.sendMail({
+    await transport.sendMail({
       from: 'Anatomica <' + process.env.MAIL_USER + '>',
       to: email,
       subject: 'Anatomica | Üyelik Aktivasyonu',
       html: result,
     });
 
-    console.log(json);
+    logger.logger.info("Succesfully Sent Activation Mail", {
+      requestInfo: {
+        name: name,
+        email: email,
+      }
+    });
   });
 }
 
-async function sendWelcomeMail(name, email) {
+async function sendWelcomeMail(name, email, req) {
   let mailPath = path.join(__dirname, '../mail_templates/register_google.html');
 
   // Prepare the HTML with replacing the placeholder strings.
   fs.readFile(mailPath, 'utf8', async function (err, data) {
-    if (err) return err.message;
+    if (err) {
+      logger.logDatabaseError(req, err);
+      return err.message;
+    }
 
     let result = data.replace(/{NAME}/g, name);
     result = result.replace(/{EMAIL}/g, email);
@@ -1003,23 +1299,31 @@ async function sendWelcomeMail(name, email) {
       })
     );
 
-    const json = await transport.sendMail({
+    await transport.sendMail({
       from: 'Anatomica <' + process.env.MAIL_USER + '>',
       to: email,
       subject: 'Anatomica | Hoş Geldiniz',
       html: result,
     });
 
-    console.log(json);
+    logger.logger.info("Successfully Sent Welcome Mail", {
+      requestInfo: {
+        name: name,
+        email: email,
+      }
+    })
   });
 }
 
-async function sendAccountDeletedMail(email) {
+async function sendAccountDeletedMail(email, req) {
   let mailPath = path.join(__dirname, '../mail_templates/account_deleted.html');
 
   // Prepare the HTML with replacing the placeholder strings.
   fs.readFile(mailPath, 'utf8', async function (err, data) {
-    if (err) return err.message;
+    if (err) {
+      logger.logDatabaseError(req, err);
+      return err.message;
+    }
 
     let result = data.replace(/{EMAIL}/g, email);
     result = result.replace(/{DOMAIN}/g, process.env.DOMAIN);
@@ -1036,25 +1340,32 @@ async function sendAccountDeletedMail(email) {
       })
     );
 
-    const json = await transport.sendMail({
+    await transport.sendMail({
       from: 'Anatomica <' + process.env.MAIL_USER + '>',
       to: email,
       subject: 'Anatomica | Hesabınız Silindi',
       html: result,
     });
 
-    console.log(json);
+    logger.logger.info("Successfully Send Account Deleted Mail", {
+      requestInfo: {
+        email: email
+      }
+    });
   });
 }
 
-async function sendPasswordResetMail(id, name, email, token) {
+async function sendPasswordResetMail(id, name, email, token, req) {
   let mailPath = path.join(__dirname, '../mail_templates/reset_password.html');
   let resetURL =
     apiPrefix + apiVersion + '/users/password/reset/' + id + '/' + token;
 
   // Prepare the HTML with replacing the placeholder strings.
   fs.readFile(mailPath, 'utf8', async function (err, data) {
-    if (err) return err.message;
+    if (err) {
+      logger.logDatabaseError(req, err);
+      return err.message;
+    }
 
     let result = data.replace(/{RESET_URL}/g, resetURL);
     result = result.replace(/{USER}/g, name);
@@ -1073,14 +1384,19 @@ async function sendPasswordResetMail(id, name, email, token) {
       })
     );
 
-    const json = await transport.sendMail({
+    await transport.sendMail({
       from: 'Anatomica <' + process.env.MAIL_USER + '>',
       to: email,
       subject: 'Anatomica | Parola Sıfırlama Talebi',
       html: result,
     });
 
-    console.log(json);
+    logger.logger.info("Successfully Sent Password Reset Mail", {
+      requestInfo: {
+        name: name,
+        email: email,
+      }
+    });
   });
 }
 
@@ -1098,21 +1414,25 @@ async function verifyGoogleAccount(idToken) {
   return payload;
 }
 
-function createGoogleUser(name, lastName, email, pp, googleId, res) {
+function createGoogleUser(name, lastName, email, pp, googleId, req, res) {
   const sql = 'CALL create_google_user(?,?,?,?,?,1,?,?)';
   const hash = crypto.createHash('md5').update(email).digest('hex');
 
   pool.getConnection(function (err, conn) {
-    if (err)
+    if (err) {
+      logger.logDatabaseError(req, err);
       return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    }
     conn.query(
       sql,
       [name, lastName, email, pp, hash, constants.ACCOUNT_GOOGLE, googleId],
       (error, rows) => {
-        if (error)
+        if (error) {
+          logger.logDatabaseError(req, error);
           return res
             .status(500)
             .json({ message: responseMessages.DATABASE_ERROR });
+        }
         const result = rows[0][0];
 
         if (result.insertId !== 0) {
@@ -1127,25 +1447,36 @@ function createGoogleUser(name, lastName, email, pp, googleId, res) {
             }
           );
 
-          sendWelcomeMail(name, email);
+          sendWelcomeMail(name, email, req);
 
           const fetchUserSql = 'CALL fetch_user_by_email(?);';
 
           pool.getConnection(function (err2, conn2) {
-            if (err2)
+            if (err2) {
+              logger.logDatabaseError(req, err2);
               return res
                 .status(500)
                 .json({ message: responseMessages.DATABASE_ERROR });
+            }
             conn2.query(fetchUserSql, [email], (error2, rows2) => {
               conn2.release();
-              if (error2)
+              if (error2) {
+                logger.logDatabaseError(req, error2);
                 return res
                   .status(500)
                   .json({ message: responseMessages.DATABASE_ERROR });
+              }
 
               const user = rows2[0][0];
 
               if (!user) {
+                logger.logger.error("GET USER INFO ERROR", {
+                  requestInfo: {
+                    name: name,
+                    lastName, lastName,
+                    email: email,
+                  }
+                });
                 return res
                   .status(500)
                   .json({
@@ -1154,10 +1485,24 @@ function createGoogleUser(name, lastName, email, pp, googleId, res) {
               }
 
               user.token = token;
+              logger.logger.info("Successfully Registered (Google)", {
+                requestInfo: {
+                  name: name,
+                  lastName, lastName,
+                  email: email,
+                }
+              });
               return res.send(user);
             });
-          });
+          })
         } else {
+          logger.logger.error("REGISTER USER ERROR (GOOGLE)", {
+            requestInfo: {
+              name: name,
+              lastName, lastName,
+              email: email,
+            }
+          });
           return res.status(500).json({
             message: responseMessages.USER_CANNOT_BE_CREATED,
           });
@@ -1167,13 +1512,15 @@ function createGoogleUser(name, lastName, email, pp, googleId, res) {
   });
 }
 
-function createAppleUser(name, lastName, email, apple_id, res) {
+function createAppleUser(name, lastName, email, apple_id, req, res) {
   const sql = 'CALL create_apple_user(?,?,?,?,1,?,?);';
   const hash = crypto.createHash('md5').update(email).digest('hex');
 
   pool.getConnection(function (err, conn) {
-    if (err)
+    if (err) {
+      logger.logDatabaseError(req, err);
       return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    }
     conn.query(
       sql,
       [name, lastName, email, hash, constants.ACCOUNT_APPLE, apple_id],
@@ -1197,7 +1544,7 @@ function createAppleUser(name, lastName, email, apple_id, res) {
             }
           );
 
-          sendWelcomeMail(name, email);
+          sendWelcomeMail(name, email, req);
 
           const fetchUserSql = 'CALL fetch_user_by_email(?);';
 
@@ -1234,50 +1581,6 @@ function createAppleUser(name, lastName, email, apple_id, res) {
         }
       }
     );
-  });
-}
-
-async function canChangeUserName(id, name, res) {
-  const sql =
-    'SELECT IF(TIMESTAMPDIFF(DAY,name_last_changed,CURRENT_TIMESTAMP()) >= 30 OR users.name_last_changed IS NULL, true, false) AS canChangeName FROM users WHERE id = ?';
-
-  pool.getConnection(function (err, conn) {
-    if (err) return res.json({ message: responseMessages.DATABASE_ERROR });
-    conn.query(sql, [id], (error, rows) => {
-      conn.release();
-      if (error) return res.json({ message: responseMessages.DATABASE_ERROR });
-
-      if (!rows[0]) {
-        // The user with the given id was not found.
-        return res.json({
-          message: responseMessages.USER_NOT_FOUND,
-        });
-      } else {
-        if (!rows[0]['canChangeName']) {
-          // User can't change his/her name.
-          return res.json({
-            message:
-              responseMessages.USER_NAME_CANNOT_CHANGED_MORE_THAN_ONCE_MONTH,
-          });
-        } else {
-          changeUserName(id, name, res);
-        }
-      }
-    });
-  });
-}
-
-async function changeUserName(id, name, res) {
-  const sql = 'UPDATE users SET name = ? WHERE id = ?';
-
-  pool.getConnection(function (err, conn) {
-    if (err) return res.json({ message: responseMessages.DATABASE_ERROR });
-    conn.query(sql, [name, id], (error, rows) => {
-      conn.release();
-      if (error) return res.json({ message: responseMessages.DATABASE_ERROR });
-
-      return res.json({ name: name });
-    });
   });
 }
 

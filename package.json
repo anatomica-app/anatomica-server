@@ -10,6 +10,7 @@
   "author": "Ahmet Özrahat",
   "license": "ISC",
   "dependencies": {
+    "@google-cloud/logging-winston": "^6.0.0",
     "@google-cloud/storage": "^5.14.4",
     "bcrypt": "^5.0.1",
     "cors": "^2.8.5",

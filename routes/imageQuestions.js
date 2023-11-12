@@ -7,6 +7,8 @@ const checkAuth = require('../middleware/check-auth');
 
 const pool = require('../database');
 const responseMessages = require('./responseMessages');
+const userInfo = require('../authenticatedUserService');
+const logger = require('../logger');
 
 // Fetching all the Image Questions
 router.post('/', checkAuth, (req, res) => {
@@ -41,6 +43,11 @@ router.post('/', checkAuth, (req, res) => {
             .status(500)
             .json({ message: responseMessages.DATABASE_ERROR });
 
+        logger.logger.info("Fetch Questions", {
+          request: userInfo(req),
+          requestInfo: {lang: lang, full: req.body.full},
+          responseLength: rows[0].length,
+        });
         return res.send(rows[0]);
       });
     });
@@ -48,17 +55,26 @@ router.post('/', checkAuth, (req, res) => {
     sql = 'CALL fetch_pictured_questions(?);';
 
     pool.getConnection(function (err, conn) {
-      if (err)
+      if (err) {
+        logger.logDatabaseError(req, err);
         return res
           .status(500)
           .json({ message: responseMessages.DATABASE_ERROR });
+      }
       conn.query(sql, [lang], (error, rows) => {
         conn.release();
-        if (error)
+        if (error) {
+          logger.logDatabaseError(req, error);
           return res
             .status(500)
             .json({ message: responseMessages.DATABASE_ERROR });
+        }
 
+        logger.logger.info("Fetch Questions", {
+          request: userInfo(req),
+          requestInfo: {lang: lang, full: req.body.full},
+          responseLength: rows[0].length,
+        });
         return res.send(rows[0]);
       });
     });
@@ -77,22 +93,47 @@ router.post('/withId', checkAuth, async (req, res) => {
   if (req.body.lang) lang = req.body.lang;
 
   const result = schema.validate(req.body);
-  if (result.error)
+  if (result.error) {
+    logger.logValidationError(result.error);
     return res.status(400).json({ message: result.error.details[0].message });
+  }
 
   const sql = 'CALL fetch_pictured_question_by_id(?, ?);';
 
   pool.getConnection(function (err, conn) {
-    if (err) return res.status(500).json({ message: responseMessages });
+    if (err) {
+      logger.logDatabaseError(req, err);
+      return res.status(500).json({ message: responseMessages });
+    }
     conn.query(sql, [req.body.id, lang], (error, rows) => {
       conn.release();
-      if (error) return res.status(500).json({ message: responseMessages });
+      if (error) {
+        logger.logDatabaseError(req, error);
+        return res.status(500).json({ message: responseMessages });
+      }
 
-      if (!rows[0])
+      if (!rows[0]) {
+        logger.logger.warning("Question Not Found", {
+          request: userInfo(req),
+          requestInfo: {
+            id: req.body.id,
+            lang: lang,
+          },
+        });
         return res.status(404).json({
           message: responseMessages.QUESTION_NOT_FOUND,
         });
-      else return res.send(rows[0]);
+      }
+      else {
+        logger.logger.info("Fetch Questions", {
+          request: userInfo(req),
+          requestInfo: {
+            id: req.body.id,
+            lang: lang,
+          },
+        });
+        return res.send(rows[0]);
+      }
     });
   });
 });
@@ -112,8 +153,10 @@ router.post('/withCategory', checkAuth, async (req, res) => {
   if (req.body.lang) lang = req.body.lang;
 
   const result = schema.validate(req.body);
-  if (result.error)
+  if (result.error) {
+    logger.logValidationError(result.error);
     return res.status(400).json({ message: result.error.details[0].message });
+  }
 
   // Use subcategories array for concetanating the SQL command.
   // For example: [1, 2] will be :
@@ -137,8 +180,10 @@ router.post('/withCategory', checkAuth, async (req, res) => {
   const sql = 'CALL fetch_pictured_questions_by_category(?, ?, ?, ?, ?);';
 
   pool.getConnection(function (err, conn) {
-    if (err)
+    if (err) {
+      logger.logDatabaseError(req, err);
       return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    }
     conn.query(
       sql,
       [
@@ -150,11 +195,24 @@ router.post('/withCategory', checkAuth, async (req, res) => {
       ],
       (error, rows) => {
         conn.release();
-        if (error)
+        if (error) {
+          logger.logDatabaseError(req, error);
           return res
             .status(500)
             .json({ message: responseMessages.DATABASE_ERROR });
+        }
 
+        logger.logger.info("Fetch Questions", {
+          request: userInfo(req),
+          requestInfo: {
+            lang: lang,
+            category: req.body.category,
+            subcategories: req.body.subcategories,
+            topics: req.body.topics,
+            maxQuestionCount: req.body.maxQuestionCount,
+          },
+          responseLength: rows[0].length,
+        });
         return res.send(rows[0]);
       }
     );

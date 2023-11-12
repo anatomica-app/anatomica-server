@@ -1,4 +1,4 @@
-require('dotenv').config()
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
@@ -11,10 +11,10 @@ const apiVersion = 'v1';
 app.set('trust proxy', 1);
 
 const limiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 100, // limit each IP to 100 requests per windowMs
-  handler: function (req, res, next) {
-    return res.json({ error: true, message: 'Limit exceeded.' });
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // limit each IP to 1 requests per windowMs
+  handler: function(req, res, next) {
+    return res.status(429).json({ error: true, message: 'Too many requests, slow down.' });
   },
 });
 
@@ -29,7 +29,7 @@ app.use(
     ],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
     preflightContinue: true,
-  })
+  }),
 );
 
 const categoriesRoute = require('./routes/categories');
@@ -64,6 +64,16 @@ app.listen(port, () => {
   console.log('App listening at port: ' + port);
 });
 
-app.get('/', (req, res) => {
-  res.send('Hello, world!');
+app.get('/health', (req, res) => {
+  const healthcheck = {
+    uptime: process.uptime(),
+    message: 'OK',
+    timestamp: Date.now(),
+  };
+  try {
+    res.send(healthcheck);
+  } catch (error) {
+    healthcheck.message = error;
+    res.status(503).send();
+  }
 });

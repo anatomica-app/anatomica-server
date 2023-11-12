@@ -7,6 +7,8 @@ const checkAuth = require('../middleware/check-auth');
 
 const pool = require('../database');
 const responseMessages = require('./responseMessages');
+const userInfo = require('../authenticatedUserService');
+const logger = require('../logger');
 
 const storageUrlPrefix =
   'https://storage.googleapis.com/anatomica-storage/quiz_category_icons/';
@@ -16,20 +18,29 @@ router.get('/', checkAuth, (req, res) => {
   const sql = 'CALL fetch_all_categories();';
 
   pool.getConnection(function (err, conn) {
-    if (err)
+    if (err) {
+      logger.logDatabaseError(req, err);
       return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    }
+
     conn.query(sql, (error, rows) => {
       conn.release();
-      if (error)
+      if (error) {
+        logger.logDatabaseError(req, error);
         return res
           .status(500)
           .json({ message: responseMessages.DATABASE_ERROR });
+      }
 
       let categories = rows[0];
       categories.forEach((element) => {
         element.icon = storageUrlPrefix + element.icon;
       });
 
+      logger.logger.info("Fetch Categories", {
+        request: userInfo(req),
+        responseLength: categories.length
+      });
       return res.send(categories);
     });
   });
@@ -52,20 +63,29 @@ router.post('/', checkAuth, (req, res) => {
   let sql = 'CALL fetch_categories_with_lang(?);';
 
   pool.getConnection(function (err, conn) {
-    if (err)
+    if (err) {
+      logger.logDatabaseError(req, err);
       return res.status(500).json({ message: responseMessages.DATABASE_ERROR });
+    }
+
     conn.query(sql, [lang], (error, rows) => {
       conn.release();
-      if (error)
+      if (error) {
+        logger.logDatabaseError(req, error);
         return res
           .status(500)
           .json({ message: responseMessages.DATABASE_ERROR });
+      }
 
       let categories = rows[0];
       categories.forEach((element) => {
         element.icon = storageUrlPrefix + element.icon;
       });
-
+      logger.logger.info("Fetch Categories", {
+        request: userInfo(req),
+        requestInfo: { lang: lang },
+        responseLength: categories.length
+      });
       return res.send(categories);
     });
   });
